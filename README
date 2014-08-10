@@ -27,6 +27,10 @@
 
       $ pipsi uninstall Pygments
 
+    Upgrading a package:
+
+      $ pipsi upgrade Pygments
+
     Showing what's installed:
 
       $ pipsi list
@@ -35,8 +39,8 @@
 
       $ pipsi uninstall pipsi
 
-    How do I upgrade pipsi?
+    How do I upgrade pipsi?  With 0.5 and later just do this:
 
-      Just uninstall and run the installer again.  It's the easiest
-      solution at the moment.
+      $ pipsi upgrade pipsi
 
+      On older versions just uninstall and reinstall.

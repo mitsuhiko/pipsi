@@ -6,7 +6,17 @@ from pkg_resources import safe_name
 
 
 def normalize_package(value):
-    return str(safe_name(value.strip()).lower())
+    # Strips the version and normalizes name
+    return str(safe_name(value.strip().split('=')[0]).lower())
+
+
+def real_readlink(filename):
+    try:
+        target = os.readlink(filename)
+    except (OSError, IOError):
+        return None
+    return os.path.normpath(os.path.realpath(
+        os.path.join(os.path.dirname(filename), target)))
 
 
 class UninstallInfo(object):
@@ -38,11 +48,9 @@ class Repo(object):
         try:
             for filename in os.listdir(self.bin_dir):
                 exe = os.path.join(self.bin_dir, filename)
-                try:
-                    target = os.readlink(exe)
-                except (OSError, IOError):
+                target = real_readlink(exe)
+                if target is None:
                     continue
-                target = os.path.normpath(os.path.realpath(exe))
                 if target.startswith(prefix):
                     yield exe
         except OSError:
@@ -72,6 +80,28 @@ class Repo(object):
                filename.startswith(prefix) and \
                os.access(filename, os.X_OK):
                 yield filename
+
+    def link_scripts(self, scripts):
+        rv = []
+        for script in scripts:
+            script_dst = os.path.join(
+                self.bin_dir, os.path.basename(script))
+            old_target = real_readlink(script_dst)
+            if old_target == script_dst:
+                continue
+            try:
+                os.remove(script_dst)
+            except OSError:
+                pass
+            try:
+                os.symlink(script, script_dst)
+            except OSError:
+                pass
+            else:
+                click.echo('  Linked script %s' % script_dst)
+                rv.append((script, script_dst))
+
+        return rv
 
     def install(self, package, python=None):
         venv_path = self.get_package_path(package)
@@ -107,20 +137,10 @@ class Repo(object):
         scripts = self.find_scripts(venv_path, package)
 
         # And link them
-        linked_any = False
-        for script in scripts:
-            script_dst = os.path.join(
-                self.bin_dir, os.path.basename(script))
-            try:
-                os.symlink(script, script_dst)
-            except OSError:
-                pass
-            else:
-                click.echo('  Linked script %s' % script_dst)
-                linked_any = True
+        linked_scripts = self.link_scripts(scripts)
 
         # We did not link any, rollback.
-        if not linked_any:
+        if not linked_scripts:
             click.echo('Did not find any scripts.  Uninstalling.')
             return _cleanup()
         return True
@@ -132,6 +152,33 @@ class Repo(object):
         paths = [path]
         paths.extend(self.find_installed_executables(path))
         return UninstallInfo(package, paths)
+
+    def upgrade(self, package):
+        venv_path = self.get_package_path(package)
+        if not os.path.isdir(venv_path):
+            click.echo('%s is not installed' % package)
+            return
+
+        from subprocess import Popen
+
+        old_scripts = set(self.find_scripts(venv_path, package))
+
+        if Popen([os.path.join(venv_path, 'bin', 'pip'),
+                  'install', '--upgrade', package]).wait() != 0:
+            click.echo('Failed to upgrade through pip.  Aborting.')
+            return
+
+        scripts = self.find_scripts(venv_path, package)
+        linked_scripts = self.link_scripts(scripts)
+        to_delete = old_scripts - set(x[0] for x in linked_scripts)
+
+        for script_src, script_link in linked_scripts:
+            if script_src in to_delete:
+                try:
+                    click.echo('  Removing old script %s' % script_src)
+                    os.remove(script_link)
+                except (IOError, OSError):
+                    pass
 
     def list_everything(self):
         venvs = {}
@@ -149,11 +196,9 @@ class Repo(object):
 
         for script in os.listdir(self.bin_dir):
             exe = os.path.join(self.bin_dir, script)
-            try:
-                target = os.readlink(exe)
-            except (OSError, IOError):
+            target = real_readlink(exe)
+            if target is None:
                 continue
-            target = os.path.normpath(os.path.realpath(exe))
             venv = _find_venv(target)
             if venv is not None:
                 venvs[venv].append(script)
@@ -194,6 +239,15 @@ def install(repo, package, python):
     discovered scripts into BIN_DIR (defaults to ~/.local/bin).
     """
     if repo.install(package, python):
+        click.echo('Done.')
+
+
+@cli.command()
+@click.argument('package')
+@pass_repo
+def upgrade(repo, package):
+    """Upgrades an already installed package."""
+    if repo.upgrade(package):
         click.echo('Done.')
 
 
