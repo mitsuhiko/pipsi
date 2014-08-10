@@ -1,10 +1,28 @@
 
   :: pipsi ::
 
-    pipsi = pip script installer
+      pipsi = pip script installer
 
-  What does it do?  pipsi is a wrapper around virtualenv and pip
-  which installs scripts provided by python packages into separate
-  virtualenvs to shield them from your system and each other.
+    What does it do?  pipsi is a wrapper around virtualenv and pip
+    which installs scripts provided by python packages into separate
+    virtualenvs to shield them from your system and each other.
 
-  In other words:
+    In other words: you can use pipsi to install things like
+    pygmentize without making your system painful.
+
+    How do I get it?
+
+      curl https://raw.githubusercontent.com/mitsuhiko/pipsi/master/get-pipsi.py | python
+
+    How does it work?
+
+    pipsi installs each package into ~/.local/venvs/PGKNAME and then
+    symlinks all new scripts into ~/.local/bin.
+
+    Installing scripts from a package:
+
+      $ pipsi install Pygments
+
+    Uninstalling packages and their scripts:
+
+      $ pipsi uninstall Pygments
