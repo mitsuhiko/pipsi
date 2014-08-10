@@ -49,16 +49,22 @@ class Repo(object):
         except OSError:
             pass
 
-    def find_scripts(self, virtualenv):
-        bin_dir = os.path.join(virtualenv, 'bin')
-        try:
-            files = os.listdir(bin_dir)
-        except OSError:
-            return
-        for filename in files:
-            fpath = os.path.join(bin_dir, filename)
-            if os.path.isfile(fpath) and os.access(fpath, os.X_OK):
-                yield fpath
+    def find_scripts(self, virtualenv, package):
+        prefix = os.path.normpath(os.path.join(virtualenv, 'bin')) + '/'
+
+        from subprocess import Popen, PIPE
+        lines = Popen([prefix + 'python', '-c',
+                       'import pkg_resources as x; ' +
+                       'print(x.get_distribution(' + repr(package) +
+                       ').get_metadata("RECORD"))'],
+                      stdout=PIPE).communicate()[0].splitlines()
+
+        for line in lines:
+            filename = os.path.normpath(line.rsplit(',', 2)[0])
+            if os.path.isfile(filename) and \
+               filename.startswith(prefix) and \
+               os.access(filename, os.X_OK):
+                yield filename
 
     def install(self, package, python=None):
         venv_path = self.get_package_path(package)
@@ -85,20 +91,17 @@ class Repo(object):
             click.echo('Failed to create virtualenv.  Aborting.')
             return _cleanup()
 
-        # Find all the scripts already installed
-        old_scripts = set(self.find_scripts(venv_path))
-
         if Popen([os.path.join(venv_path, 'bin', 'pip'),
                   'install', package]).wait() != 0:
             click.echo('Failed to pip install.  Aborting.')
             return _cleanup()
 
-        # Find all scripts again
-        new_scripts = set(self.find_scripts(venv_path))
+        # Find all the scripts
+        scripts = self.find_scripts(venv_path, package)
 
         # And link them
         linked_any = False
-        for script in new_scripts - old_scripts:
+        for script in scripts:
             script_dst = os.path.join(
                 self.bin_dir, os.path.basename(script))
             try:
