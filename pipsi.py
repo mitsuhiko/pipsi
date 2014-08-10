@@ -50,17 +50,25 @@ class Repo(object):
             pass
 
     def find_scripts(self, virtualenv, package):
-        prefix = os.path.normpath(os.path.join(virtualenv, 'bin')) + '/'
+        prefix = os.path.normpath(os.path.realpath(os.path.join(
+            virtualenv, 'bin'))) + '/'
 
         from subprocess import Popen, PIPE
-        lines = Popen([prefix + 'python', '-c',
-                       'import pkg_resources as x; ' +
-                       'print(x.get_distribution(' + repr(package) +
-                       ').get_metadata("RECORD"))'],
-                      stdout=PIPE).communicate()[0].splitlines()
+        files = Popen([prefix + 'python', '-c', '''if 1:
+            import os
+            import pkg_resources
 
-        for line in lines:
-            filename = os.path.normpath(line.rsplit(',', 2)[0])
+            dist = pkg_resources.get_distribution(%(pkg)r)
+            if dist.has_metadata('RECORD'):
+                for line in dist.get_metadata_lines('RECORD'):
+                    print(line.split(',')[0])
+            else:
+                for line in dist.get_metadata_lines('installed-files.txt'):
+                    print(os.path.join(dist.egg_info, line.split(',')[0]))
+        ''' % {'pkg': package}], stdout=PIPE).communicate()[0].splitlines()
+
+        for filename in files:
+            filename = os.path.normpath(os.path.realpath(filename))
             if os.path.isfile(filename) and \
                filename.startswith(prefix) and \
                os.access(filename, os.X_OK):
