@@ -1,5 +1,5 @@
 
-  :: pipsi ::
+  // pipsi //
 
       pipsi = pip script installer
 
@@ -26,3 +26,17 @@
     Uninstalling packages and their scripts:
 
       $ pipsi uninstall Pygments
+
+    Showing what's installed:
+
+      $ pipsi list
+
+    How do I get rid of pipsi?
+
+      $ pipsi uninstall pipsi
+
+    How do I upgrade pipsi?
+
+      Just uninstall and run the installer again.  It's the easiest
+      solution at the moment.
+

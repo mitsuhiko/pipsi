@@ -42,8 +42,7 @@ class Repo(object):
                     target = os.readlink(exe)
                 except (OSError, IOError):
                     continue
-                target = os.path.normpath(os.path.realpath(
-                    os.path.join(self.bin_dir, filename)))
+                target = os.path.normpath(os.path.realpath(exe))
                 if target.startswith(prefix):
                     yield exe
         except OSError:
@@ -77,7 +76,7 @@ class Repo(object):
     def install(self, package, python=None):
         venv_path = self.get_package_path(package)
         if os.path.isdir(venv_path):
-            click.echo('%s is already installed' % venv_path)
+            click.echo('%s is already installed' % package)
             return
 
         from subprocess import Popen
@@ -134,6 +133,33 @@ class Repo(object):
         paths.extend(self.find_installed_executables(path))
         return UninstallInfo(package, paths)
 
+    def list_everything(self):
+        venvs = {}
+
+        for venv in os.listdir(self.home):
+            venv_path = os.path.join(self.home, venv)
+            if os.path.isdir(venv_path) and \
+               os.path.isfile(venv_path + '/bin/python'):
+                venvs[venv] = []
+
+        def _find_venv(target):
+            for venv in venvs:
+                if target.startswith(os.path.join(self.home, venv) + '/'):
+                    return venv
+
+        for script in os.listdir(self.bin_dir):
+            exe = os.path.join(self.bin_dir, script)
+            try:
+                target = os.readlink(exe)
+            except (OSError, IOError):
+                continue
+            target = os.path.normpath(os.path.realpath(exe))
+            venv = _find_venv(target)
+            if venv is not None:
+                venvs[venv].append(script)
+
+        return sorted(venvs.items())
+
 
 pass_repo = click.make_pass_decorator(Repo, ensure=True)
 
@@ -171,7 +197,7 @@ def install(repo, package, python):
         click.echo('Done.')
 
 
-@cli.command()
+@cli.command(short_help='Uninstalls scripts of a package.')
 @click.argument('package')
 @click.option('--yes', is_flag=True, help='Skips all prompts.')
 @pass_repo
@@ -192,3 +218,16 @@ def uninstall(repo, package, yes):
             click.echo('Done!')
         else:
             click.echo('Aborted!')
+
+
+@cli.command('list')
+@pass_repo
+def list_cmd(repo):
+    """Lists all scripts installed through pipsi."""
+    click.echo('Packages and scripts installed through pipsi:')
+    for venv, scripts in repo.list_everything():
+        if not scripts:
+            continue
+        click.echo('  Package "%s":' % venv)
+        for script in scripts:
+            click.echo('    ' + script)
