@@ -87,7 +87,7 @@ class Repo(object):
             script_dst = os.path.join(
                 self.bin_dir, os.path.basename(script))
             old_target = real_readlink(script_dst)
-            if old_target == script_dst:
+            if old_target == script:
                 continue
             try:
                 os.remove(script_dst)
