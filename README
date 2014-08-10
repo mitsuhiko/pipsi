@@ -1,0 +1,10 @@
+
+  :: pipsi ::
+
+    pipsi = pip script installer
+
+  What does it do?  pipsi is a wrapper around virtualenv and pip
+  which installs scripts provided by python packages into separate
+  virtualenvs to shield them from your system and each other.
+
+  In other words:
