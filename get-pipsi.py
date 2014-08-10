@@ -26,10 +26,10 @@ def main():
     if os.name != 'posix':
         fail('So sorry, but pipsi only works on POSIX systems :(')
 
-    if os.system('pipsi --version &> /dev/null') == 0:
+    if os.system('pipsi --version >/dev/null 2>/dev/null') == 0:
         succeed('You already have pipsi installed')
 
-    if os.system('virtualenv --version &> /dev/null') != 0:
+    if os.system('virtualenv --version >/dev/null 2>/dev/null') != 0:
         fail('You need to have virtualenv installed to bootstrap pipsi.')
 
     try:
@@ -57,7 +57,7 @@ def main():
 
     os.symlink(venv + '/bin/pipsi', bin_dir + '/pipsi')
 
-    if os.system('pipsi --version &> /dev/null') != 0:
+    if os.system('pipsi --version >/dev/null 2>/dev/null') != 0:
         echo()
         echo('=' * 60)
         echo()
