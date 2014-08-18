@@ -181,8 +181,9 @@ class Repo(object):
                 click.echo('Failed to pip install.  Aborting.')
                 return _cleanup()
         except Exception:
+            exc_type, exc_value, tb = sys.exc_info()
             _cleanup()
-            raise
+            raise exc_type, exc_value, tb
 
         # Find all the scripts
         scripts = self.find_scripts(venv_path, package)
