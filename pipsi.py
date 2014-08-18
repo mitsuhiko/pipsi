@@ -167,17 +167,22 @@ class Repo(object):
             args.append('-p')
             args.append(python)
         args.append(venv_path)
-        if Popen(args).wait() != 0:
-            click.echo('Failed to create virtualenv.  Aborting.')
-            return _cleanup()
 
-        args = [os.path.join(venv_path, 'bin', 'pip'), 'install']
-        if editable:
-            args.append('--editable')
+        try:
+            if Popen(args).wait() != 0:
+                click.echo('Failed to create virtualenv.  Aborting.')
+                return _cleanup()
 
-        if Popen(args + install_args).wait() != 0:
-            click.echo('Failed to pip install.  Aborting.')
-            return _cleanup()
+            args = [os.path.join(venv_path, 'bin', 'pip'), 'install']
+            if editable:
+                args.append('--editable')
+
+            if Popen(args + install_args).wait() != 0:
+                click.echo('Failed to pip install.  Aborting.')
+                return _cleanup()
+        except Exception:
+            _cleanup()
+            raise
 
         # Find all the scripts
         scripts = self.find_scripts(venv_path, package)
