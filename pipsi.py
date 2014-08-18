@@ -1,5 +1,7 @@
 import os
+import sys
 import shutil
+from urlparse import urlparse
 
 import click
 from pkg_resources import safe_name
@@ -40,6 +42,31 @@ class Repo(object):
         self.home = os.path.expanduser('~/.local/venvs')
         self.bin_dir = os.path.expanduser('~/.local/bin')
 
+    def resolve_package(self, spec, python=None):
+        url = urlparse(spec)
+        if url.netloc == 'file':
+            location = url.path
+        elif url.netloc != '':
+            if not url.fragment.startswith('egg='):
+                raise click.UsageError('When installing from URLs you need '
+                                       'to add an egg at the end.  For '
+                                       'instance git+https://.../#egg=Foo')
+            return url.fragment[4:], [spec]
+        elif os.path.isdir(spec):
+            location = spec
+        else:
+            return spec, [spec]
+
+        from subprocess import Popen, PIPE
+        p = Popen([python or sys.executable, 'setup.py', '--name'],
+                  stdout=PIPE, stderr=PIPE, cwd=location)
+        name = p.communicate()[0].strip()
+        if p.returncode != 0:
+            raise click.UsageError('%s does not appear to be a local '
+                                   'Python package.' % spec)
+
+        return name.strip(), [location]
+
     def get_package_path(self, package):
         return os.path.join(self.home, normalize_package(package))
 
@@ -61,7 +88,7 @@ class Repo(object):
             virtualenv, 'bin'))) + '/'
 
         from subprocess import Popen, PIPE
-        files = Popen([prefix + 'python', '-c', '''if 1:
+        files = Popen([prefix + 'python', '-c', r'''if 1:
             import os
             import pkg_resources
 
@@ -69,10 +96,24 @@ class Repo(object):
             if dist.has_metadata('RECORD'):
                 for line in dist.get_metadata_lines('RECORD'):
                     print(line.split(',')[0])
-            else:
+            elif dist.has_metadata('installed-files.txt'):
                 for line in dist.get_metadata_lines('installed-files.txt'):
                     print(os.path.join(dist.egg_info, line.split(',')[0]))
-        ''' % {'pkg': package}], stdout=PIPE).communicate()[0].splitlines()
+            elif dist.has_metadata('entry_points.txt'):
+                try:
+                    from ConfigParser import SafeConfigParser
+                    from StringIO import StringIO
+                except ImportError:
+                    from configparser import SafeConfigParser
+                    from io import StringIO
+                parser = SafeConfigParser()
+                parser.readfp(StringIO(
+                    '\n'.join(dist.get_metadata_lines('entry_points.txt'))))
+                if parser.has_section('console_scripts'):
+                    for name, _ in parser.items('console_scripts'):
+                        print os.path.join(%(prefix)r, name)
+            ''' % {'pkg': package, 'prefix': prefix}],
+            stdout=PIPE).communicate()[0].splitlines()
 
         for filename in files:
             filename = os.path.normpath(os.path.realpath(filename))
@@ -103,7 +144,9 @@ class Repo(object):
 
         return rv
 
-    def install(self, package, python=None):
+    def install(self, package, python=None, editable=False):
+        package, install_args = self.resolve_package(package, python)
+
         venv_path = self.get_package_path(package)
         if os.path.isdir(venv_path):
             click.echo('%s is already installed' % package)
@@ -128,8 +171,11 @@ class Repo(object):
             click.echo('Failed to create virtualenv.  Aborting.')
             return _cleanup()
 
-        if Popen([os.path.join(venv_path, 'bin', 'pip'),
-                  'install', package]).wait() != 0:
+        args = [os.path.join(venv_path, 'bin', 'pip'), 'install']
+        if editable:
+            args.append('--editable')
+
+        if Popen(args + install_args).wait() != 0:
             click.echo('Failed to pip install.  Aborting.')
             return _cleanup()
 
@@ -153,7 +199,9 @@ class Repo(object):
         paths.extend(self.find_installed_executables(path))
         return UninstallInfo(package, paths)
 
-    def upgrade(self, package):
+    def upgrade(self, package, editable=False):
+        package, install_args = self.resolve_package(package)
+
         venv_path = self.get_package_path(package)
         if not os.path.isdir(venv_path):
             click.echo('%s is not installed' % package)
@@ -163,8 +211,12 @@ class Repo(object):
 
         old_scripts = set(self.find_scripts(venv_path, package))
 
-        if Popen([os.path.join(venv_path, 'bin', 'pip'),
-                  'install', '--upgrade', package]).wait() != 0:
+        args = [os.path.join(venv_path, 'bin', 'pip'), 'install',
+                '--upgrade']
+        if editable:
+            args.append('--editable')
+
+        if Popen(args + install_args).wait() != 0:
             click.echo('Failed to upgrade through pip.  Aborting.')
             return
 
@@ -230,24 +282,30 @@ def cli(repo, home, bin_dir):
 @click.argument('package')
 @click.option('--python', default=None,
               help='The python interpreter to use.')
+@click.option('--editable', is_flag=True,
+              help='Enable editable installation.  This only works for '
+                   'locally installed packages.')
 @pass_repo
-def install(repo, package, python):
+def install(repo, package, python, editable):
     """Installs scripts from a Python package.
 
     Given a package this will install all the scripts and their dependencies
     of the given Python package into a new virtualenv and symlinks the
     discovered scripts into BIN_DIR (defaults to ~/.local/bin).
     """
-    if repo.install(package, python):
+    if repo.install(package, python, editable):
         click.echo('Done.')
 
 
 @cli.command()
 @click.argument('package')
+@click.option('--editable', is_flag=True,
+              help='Enable editable installation.  This only works for '
+                   'locally installed packages.')
 @pass_repo
-def upgrade(repo, package):
+def upgrade(repo, package, editable):
     """Upgrades an already installed package."""
-    if repo.upgrade(package):
+    if repo.upgrade(package, editable):
         click.echo('Done.')
 
 
