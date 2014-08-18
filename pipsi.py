@@ -152,6 +152,9 @@ class Repo(object):
             click.echo('%s is already installed' % package)
             return
 
+        if not os.path.exists(self.bin_dir):
+            os.mkdir(self.bin_dir)
+
         from subprocess import Popen
 
         def _cleanup():
