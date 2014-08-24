@@ -153,7 +153,7 @@ class Repo(object):
             return
 
         if not os.path.exists(self.bin_dir):
-            os.mkdir(self.bin_dir)
+            os.makedirs(self.bin_dir)
 
         from subprocess import Popen
 
