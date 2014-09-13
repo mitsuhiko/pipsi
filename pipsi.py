@@ -4,12 +4,13 @@ import shutil
 from urlparse import urlparse
 
 import click
-from pkg_resources import safe_name
+from pkg_resources import Requirement
 
 
 def normalize_package(value):
     # Strips the version and normalizes name
-    return str(safe_name(value.strip().split('=')[0]).lower())
+    requirement = Requirement.parse(value)
+    return requirement.project_name.lower()
 
 
 def real_readlink(filename):
