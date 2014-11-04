@@ -43,7 +43,7 @@ def main():
 
     def _cleanup():
         try:
-            shutil.rmdir(venv)
+            shutil.rmtree(venv)
         except (OSError, IOError):
             pass
 
