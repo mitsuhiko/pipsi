@@ -1,7 +1,10 @@
 import os
 import sys
 import shutil
-from urlparse import urlparse
+try:
+    from urlparse import urlparse
+except ImportError:
+    from urllib.parse import urlparse
 
 import click
 from pkg_resources import safe_name
@@ -111,7 +114,7 @@ class Repo(object):
                     '\n'.join(dist.get_metadata_lines('entry_points.txt'))))
                 if parser.has_section('console_scripts'):
                     for name, _ in parser.items('console_scripts'):
-                        print os.path.join(%(prefix)r, name)
+                        print(os.path.join(%(prefix)r, name))
             ''' % {'pkg': package, 'prefix': prefix}],
             stdout=PIPE).communicate()[0].splitlines()
 
@@ -184,9 +187,8 @@ class Repo(object):
                 click.echo('Failed to pip install.  Aborting.')
                 return _cleanup()
         except Exception:
-            exc_type, exc_value, tb = sys.exc_info()
             _cleanup()
-            raise exc_type, exc_value, tb
+            raise
 
         # Find all the scripts
         scripts = self.find_scripts(venv_path, package)
