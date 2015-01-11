@@ -1,6 +1,20 @@
 #!/usr/bin/env python
 import os
 import sys
+from subprocess import call
+import shutil
+
+
+try:
+    WindowsError
+except NameError:
+    IS_WIN = False
+    PIP = '/bin/pip'
+    PIPSI = '/bin/pipsi'
+else:
+    IS_WIN = True
+    PIP = '/Scripts/pip.exe'
+    PIPSI = '/Scripts/pipsi.exe'
 
 
 def echo(msg=''):
@@ -19,27 +33,31 @@ def succeed(msg):
     sys.exit(0)
 
 
-def main():
-    print('Installing pipsi')
-    bin_dir = os.path.expanduser('~/.local/bin')
+def command_exists(cmd):
+    with open(os.devnull, 'w') as null:
+        try:
+            return call(
+                [cmd, '--version'],
+                stdout=null, stderr=null) == 0
+        except OSError:
+            return False
 
-    if os.name != 'posix':
-        fail('So sorry, but pipsi only works on POSIX systems :(')
 
-    if os.system('pipsi --version >/dev/null 2>/dev/null') == 0:
-        succeed('You already have pipsi installed')
+def publish_script(venv, bin_dir):
+    if IS_WIN:
+        for name in os.listdir(venv + '/Scripts'):
+            if 'pipsi' in name.lower():
+                shutil.copy(venv + '/Scripts/' + name, bin_dir)
+    else:
+        os.symlink(venv + '/bin/pipsi', bin_dir + '/pipsi')
+    echo('Installed pipsi binary in ' + bin_dir)
 
-    if os.system('virtualenv --version >/dev/null 2>/dev/null') != 0:
-        fail('You need to have virtualenv installed to bootstrap pipsi.')
 
+def install_files(venv, bin_dir, install):
     try:
         os.makedirs(bin_dir)
     except OSError:
         pass
-
-    import shutil
-    from subprocess import Popen
-    venv = os.path.expanduser('~/.local/venvs/pipsi')
 
     def _cleanup():
         try:
@@ -47,17 +65,32 @@ def main():
         except (OSError, IOError):
             pass
 
-    if Popen(['virtualenv', venv]).wait() != 0:
+    if call(['virtualenv', venv]) != 0:
         _cleanup()
         fail('Could not create virtualenv for pipsi :(')
 
-    if Popen([venv + '/bin/pip', 'install', 'pipsi']).wait() != 0:
+    if call([venv + PIP, 'install', install]) != 0:
         _cleanup()
         fail('Could not install pipsi :(')
 
-    os.symlink(venv + '/bin/pipsi', bin_dir + '/pipsi')
+    publish_script(venv, bin_dir)
 
-    if os.system('pipsi --version >/dev/null 2>/dev/null') != 0:
+
+def main():
+    if command_exists('pipsi'):
+        succeed('You already have pipsi installed')
+    else:
+        echo('Installing pipsi')
+
+    if not command_exists('virtualenv'):
+        fail('You need to have virtualenv installed to bootstrap pipsi.')
+
+
+    bin_dir = os.path.expanduser('~/.local/bin')
+    venv = os.path.expanduser('~/.local/venvs/pipsi')
+    install_files(venv, bin_dir, 'pipsi')
+
+    if not command_exists('pipsi') != 0:
         echo()
         echo('=' * 60)
         echo()
@@ -75,4 +108,8 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    if len(sys.argv) > 1:
+        # we are being tested
+        install_files(*sys.argv[1:])
+    else:
+        main()
