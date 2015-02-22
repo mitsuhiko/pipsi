@@ -6,12 +6,12 @@ from pipsi import Repo, find_scripts
 
 @pytest.fixture
 def bin(tmpdir):
-    return tmpdir.ensure('bin', dir=1)
+    return tmpdir.ensure('MixedCase', 'bin', dir=1)
 
 
 @pytest.fixture
 def home(tmpdir):
-    return tmpdir.ensure('venvs', dir=1)
+    return tmpdir.ensure('MixedCase', 'venvs', dir=1)
 
 
 @pytest.fixture
@@ -22,9 +22,9 @@ def repo(home, bin):
 def test_simple_install(repo, home, bin):
     assert not home.listdir()
     assert not bin.listdir()
-    repo.install('.')
-    assert home.join('pipsi').check()
-    assert bin.listdir('pipsi*')
+    repo.install('grin')
+    assert home.join('grin').check()
+    assert bin.listdir('grin*')
 
 
 def test_find_scripts():
