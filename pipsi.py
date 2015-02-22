@@ -2,7 +2,7 @@ import os
 import sys
 import shutil
 import glob
-from os.path import join, realpath, dirname, normpath
+from os.path import join, realpath, dirname, normpath, normcase
 from operator import methodcaller
 try:
     from urlparse import urlparse
@@ -57,7 +57,7 @@ def normalize_package(value):
 
 
 def normalize(path):
-    return normpath(realpath(path))
+    return normcase(normpath(realpath(path)))
 
 
 def real_readlink(filename):
@@ -100,7 +100,7 @@ def publish_script(src, dst):
 
 
 def find_scripts(virtualenv, package):
-    prefix = join(normalize(virtualenv), BIN_DIR, '')
+    prefix = normalize(join(virtualenv, BIN_DIR, ''))
 
     files = statusoutput([
         join(prefix, 'python'), '-c', FIND_SCRIPTS_SCRIPT,
