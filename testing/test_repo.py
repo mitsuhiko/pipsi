@@ -4,14 +4,19 @@ import pytest
 from pipsi import Repo, find_scripts
 
 
-@pytest.fixture
-def bin(tmpdir):
-    return tmpdir.ensure('MixedCase', 'bin', dir=1)
+@pytest.fixture(params=['normal', 'MixedCase'])
+def mix(request):
+    return request.param
 
 
 @pytest.fixture
-def home(tmpdir):
-    return tmpdir.ensure('MixedCase', 'venvs', dir=1)
+def bin(tmpdir, mix):
+    return tmpdir.ensure(mix, 'bin', dir=1)
+
+
+@pytest.fixture
+def home(tmpdir, mix):
+    return tmpdir.ensure(mix, 'venvs', dir=1)
 
 
 @pytest.fixture
@@ -19,12 +24,16 @@ def repo(home, bin):
     return Repo(str(home), str(bin))
 
 
-def test_simple_install(repo, home, bin):
+@pytest.mark.parametrize('package, glob', [
+    ('grin', 'grin*'),
+    ('pipsi', 'pipsi*'),
+])
+def test_simple_install(repo, home, bin, package, glob):
     assert not home.listdir()
     assert not bin.listdir()
-    repo.install('grin')
-    assert home.join('grin').check()
-    assert bin.listdir('grin*')
+    repo.install(package)
+    assert home.join(package).check()
+    assert bin.listdir(glob)
 
 
 def test_find_scripts():
