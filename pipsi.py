@@ -10,6 +10,12 @@ import click
 from pkg_resources import Requirement
 
 
+# The `click` custom context settings
+CONTEXT_SETTINGS = dict(
+    help_option_names=['-h', '--help'],
+)
+
+
 def normalize_package(value):
     # Strips the version and normalizes name
     requirement = Requirement.parse(value)
@@ -273,7 +279,7 @@ class Repo(object):
 pass_repo = click.make_pass_decorator(Repo, ensure=True)
 
 
-@click.group()
+@click.group(context_settings=CONTEXT_SETTINGS)
 @click.option('--home', type=click.Path(), default=None,
               help='The folder that contains the virtualenvs.')
 @click.option('--bin-dir', type=click.Path(), default=None,
