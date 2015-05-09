@@ -229,12 +229,8 @@ class Repo(object):
                 pass
             return False
 
-        # Install virtualenv
-        args = ['virtualenv']
-        if python is not None:
-            args.append('-p')
-            args.append(python)
-        args.append(venv_path)
+        # Install virtualenv, use the pipsi used python version by default
+        args = ['virtualenv', '-p', python or sys.executable, venv_path]
 
         try:
             if Popen(args).wait() != 0:
