@@ -79,6 +79,8 @@ def statusoutput(argv, **kw):
     p = Popen(
         argv, stdout=PIPE, stderr=PIPE, **kw)
     output = p.communicate()[0].strip()
+    if not isinstance(output, str):
+        output = output.decode('utf-8', 'replace')
     return p.returncode, output
 
 
