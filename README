@@ -16,7 +16,7 @@
 
     How does it work?
 
-    pipsi installs each package into ~/.local/venvs/PGKNAME and then
+    pipsi installs each package into ~/.local/venvs/PKGNAME and then
     symlinks all new scripts into ~/.local/bin.
 
     Installing scripts from a package:

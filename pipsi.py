@@ -325,13 +325,15 @@ class Repo(object):
 
 @click.group()
 @click.option(
-    '--home', type=click.Path(),
+    '--home', type=click.Path(),envvar='PIPSI_HOME',
     default=os.path.expanduser('~/.local/venvs'),
     help='The folder that contains the virtualenvs.')
 @click.option(
     '--bin-dir', type=click.Path(),
+    envvar='PIPSI_BIN_DIR',
     default=os.path.expanduser('~/.local/bin'),
     help='The path where the scripts are symlinked to.')
+
 @click.version_option()
 @click.pass_context
 def cli(ctx, home, bin_dir):
