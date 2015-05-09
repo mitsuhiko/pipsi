@@ -5,3 +5,6 @@ dist
 build
 *.egg
 *.egg-info
+.tox/
+.env/
+.cache/

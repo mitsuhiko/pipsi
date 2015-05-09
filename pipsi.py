@@ -1,6 +1,9 @@
 import os
 import sys
 import shutil
+import glob
+from os.path import join, realpath, dirname, normpath, normcase
+from operator import methodcaller
 try:
     from urlparse import urlparse
 except ImportError:
@@ -9,6 +12,43 @@ except ImportError:
 import click
 from pkg_resources import Requirement
 
+try:
+    WindowsError
+except NameError:
+    IS_WIN = False
+    BIN_DIR = 'bin'
+else:
+    IS_WIN = True
+    BIN_DIR = 'Scripts'
+
+FIND_SCRIPTS_SCRIPT = r'''if 1:
+    import os
+    import sys
+    import pkg_resources
+    pkg = sys.argv[1]
+    prefix = sys.argv[2]
+    dist = pkg_resources.get_distribution(pkg)
+    if dist.has_metadata('RECORD'):
+        for line in dist.get_metadata_lines('RECORD'):
+            print(line.split(',')[0])
+    elif dist.has_metadata('installed-files.txt'):
+        for line in dist.get_metadata_lines('installed-files.txt'):
+            print(os.path.join(dist.egg_info, line.split(',')[0]))
+    elif dist.has_metadata('entry_points.txt'):
+        try:
+            from ConfigParser import SafeConfigParser
+            from StringIO import StringIO
+        except ImportError:
+            from configparser import SafeConfigParser
+            from io import StringIO
+        parser = SafeConfigParser()
+        parser.readfp(StringIO(
+            '\n'.join(dist.get_metadata_lines('entry_points.txt'))))
+        if parser.has_section('console_scripts'):
+            for name, _ in parser.items('console_scripts'):
+                print(os.path.join(prefix, name))
+'''
+
 
 def normalize_package(value):
     # Strips the version and normalizes name
@@ -16,13 +56,74 @@ def normalize_package(value):
     return requirement.project_name.lower()
 
 
+def normalize(path):
+    return normcase(normpath(realpath(path)))
+
+
 def real_readlink(filename):
     try:
         target = os.readlink(filename)
-    except (OSError, IOError):
+    except (OSError, IOError, AttributeError):
         return None
-    return os.path.normpath(os.path.realpath(
-        os.path.join(os.path.dirname(filename), target)))
+    return normpath(realpath(join(dirname(filename), target)))
+
+
+def statusoutput(argv, **kw):
+    from subprocess import Popen, PIPE
+    p = Popen(
+        argv, stdout=PIPE, stderr=PIPE, **kw)
+    output = p.communicate()[0].strip()
+    return p.returncode, output
+
+
+def publish_script(src, dst):
+    if IS_WIN:
+        # always copy new exe on windows
+        shutil.copy(src, dst)
+        click.echo('  Copied Executable ' + dst)
+        return True
+    else:
+        old_target = real_readlink(dst)
+        if old_target == src:
+            return True
+        try:
+            os.remove(dst)
+        except OSError:
+            pass
+        try:
+            os.symlink(src, dst)
+        except OSError:
+            pass
+        else:
+            click.echo('  Linked script ' + dst)
+            return True
+
+
+def find_scripts(virtualenv, package):
+    prefix = normalize(join(virtualenv, BIN_DIR, ''))
+
+    files = statusoutput([
+        join(prefix, 'python'), '-c', FIND_SCRIPTS_SCRIPT,
+        package, prefix
+    ])[1].splitlines()
+
+    files = map(normalize, files)
+    files = filter(
+        methodcaller('startswith', prefix),
+        files,
+    )
+
+    def valid(filename):
+        return os.path.isfile(filename) and \
+            IS_WIN or os.access(filename, os.X_OK)
+
+    result = list(filter(valid, files))
+
+    if IS_WIN:
+        for filename in files:
+            globed = glob.glob(filename + '*')
+            result.extend(filter(valid, globed))
+    return result
 
 
 class UninstallInfo(object):
@@ -40,11 +141,15 @@ class UninstallInfo(object):
                 shutil.rmtree(path)
 
 
+
+
+
+
 class Repo(object):
 
-    def __init__(self):
-        self.home = os.path.expanduser('~/.local/venvs')
-        self.bin_dir = os.path.expanduser('~/.local/bin')
+    def __init__(self, home, bin_dir):
+        self.home = home
+        self.bin_dir = bin_dir
 
     def resolve_package(self, spec, python=None):
         url = urlparse(spec)
@@ -61,21 +166,20 @@ class Repo(object):
         else:
             return spec, [spec]
 
-        from subprocess import Popen, PIPE
-        p = Popen([python or sys.executable, 'setup.py', '--name'],
-                  stdout=PIPE, stderr=PIPE, cwd=location)
-        name = p.communicate()[0].strip()
-        if p.returncode != 0:
+        error, name = statusoutput(
+            [python or sys.executable, 'setup.py', '--name'],
+            cwd=location)
+        if error:
             raise click.UsageError('%s does not appear to be a local '
                                    'Python package.' % spec)
 
-        return name.strip(), [location]
+        return name, [location]
 
     def get_package_path(self, package):
-        return os.path.join(self.home, normalize_package(package))
+        return join(self.home, normalize_package(package))
 
     def find_installed_executables(self, path):
-        prefix = os.path.realpath(os.path.normpath(path)) + '/'
+        prefix = join(realpath(normpath(path)), '')
         try:
             for filename in os.listdir(self.bin_dir):
                 exe = os.path.join(self.bin_dir, filename)
@@ -87,63 +191,12 @@ class Repo(object):
         except OSError:
             pass
 
-    def find_scripts(self, virtualenv, package):
-        prefix = os.path.normpath(os.path.realpath(os.path.join(
-            virtualenv, 'bin'))) + '/'
-
-        from subprocess import Popen, PIPE
-        files = Popen([prefix + 'python', '-c', r'''if 1:
-            import os
-            import pkg_resources
-
-            dist = pkg_resources.get_distribution(%(pkg)r)
-            if dist.has_metadata('RECORD'):
-                for line in dist.get_metadata_lines('RECORD'):
-                    print(line.split(',')[0])
-            elif dist.has_metadata('installed-files.txt'):
-                for line in dist.get_metadata_lines('installed-files.txt'):
-                    print(os.path.join(dist.egg_info, line.split(',')[0]))
-            elif dist.has_metadata('entry_points.txt'):
-                try:
-                    from ConfigParser import SafeConfigParser
-                    from StringIO import StringIO
-                except ImportError:
-                    from configparser import SafeConfigParser
-                    from io import StringIO
-                parser = SafeConfigParser()
-                parser.readfp(StringIO(
-                    '\n'.join(dist.get_metadata_lines('entry_points.txt'))))
-                if parser.has_section('console_scripts'):
-                    for name, _ in parser.items('console_scripts'):
-                        print(os.path.join(%(prefix)r, name))
-            ''' % {'pkg': package, 'prefix': prefix}],
-            stdout=PIPE).communicate()[0].splitlines()
-
-        for filename in files:
-            filename = os.path.normpath(os.path.realpath(filename))
-            if os.path.isfile(filename) and \
-               filename.startswith(prefix) and \
-               os.access(filename, os.X_OK):
-                yield filename
-
     def link_scripts(self, scripts):
         rv = []
         for script in scripts:
             script_dst = os.path.join(
                 self.bin_dir, os.path.basename(script))
-            old_target = real_readlink(script_dst)
-            if old_target == script:
-                continue
-            try:
-                os.remove(script_dst)
-            except OSError:
-                pass
-            try:
-                os.symlink(script, script_dst)
-            except OSError:
-                pass
-            else:
-                click.echo('  Linked script %s' % script_dst)
+            if publish_script(script, script_dst):
                 rv.append((script, script_dst))
 
         return rv
@@ -180,7 +233,7 @@ class Repo(object):
                 click.echo('Failed to create virtualenv.  Aborting.')
                 return _cleanup()
 
-            args = [os.path.join(venv_path, 'bin', 'pip'), 'install']
+            args = [os.path.join(venv_path, BIN_DIR, 'pip'), 'install']
             if editable:
                 args.append('--editable')
 
@@ -192,7 +245,7 @@ class Repo(object):
             raise
 
         # Find all the scripts
-        scripts = self.find_scripts(venv_path, package)
+        scripts = find_scripts(venv_path, package)
 
         # And link them
         linked_scripts = self.link_scripts(scripts)
@@ -221,9 +274,9 @@ class Repo(object):
 
         from subprocess import Popen
 
-        old_scripts = set(self.find_scripts(venv_path, package))
+        old_scripts = set(find_scripts(venv_path, package))
 
-        args = [os.path.join(venv_path, 'bin', 'pip'), 'install',
+        args = [os.path.join(venv_path, BIN_DIR, 'pip'), 'install',
                 '--upgrade']
         if editable:
             args.append('--editable')
@@ -232,7 +285,7 @@ class Repo(object):
             click.echo('Failed to upgrade through pip.  Aborting.')
             return
 
-        scripts = self.find_scripts(venv_path, package)
+        scripts = find_scripts(venv_path, package)
         linked_scripts = self.link_scripts(scripts)
         to_delete = old_scripts - set(x[0] for x in linked_scripts)
 
@@ -246,16 +299,16 @@ class Repo(object):
 
     def list_everything(self):
         venvs = {}
-
+        python = '/Scripts/python.exe' if IS_WIN else '/bin/python'
         for venv in os.listdir(self.home):
             venv_path = os.path.join(self.home, venv)
             if os.path.isdir(venv_path) and \
-               os.path.isfile(venv_path + '/bin/python'):
+               os.path.isfile(venv_path + python):
                 venvs[venv] = []
 
         def _find_venv(target):
             for venv in venvs:
-                if target.startswith(os.path.join(self.home, venv) + '/'):
+                if target.startswith(join(self.home, venv, '')):
                     return venv
 
         for script in os.listdir(self.bin_dir):
@@ -270,25 +323,24 @@ class Repo(object):
         return sorted(venvs.items())
 
 
-pass_repo = click.make_pass_decorator(Repo, ensure=True)
-
-
 @click.group()
-@click.option('--home', type=click.Path(), default=None, envvar='PIPSI_HOME',
-              help='The folder that contains the virtualenvs.')
-@click.option('--bin-dir', type=click.Path(), default=None,
-              envvar='PIPSI_BIN_DIR',
-              help='The path where the scripts are symlinked to.')
+@click.option(
+    '--home', type=click.Path(),envvar='PIPSI_HOME',
+    default=os.path.expanduser('~/.local/venvs'),
+    help='The folder that contains the virtualenvs.')
+@click.option(
+    '--bin-dir', type=click.Path(),
+    envvar='PIPSI_BIN_DIR',
+    default=os.path.expanduser('~/.local/bin'),
+    help='The path where the scripts are symlinked to.')
+
 @click.version_option()
-@pass_repo
-def cli(repo, home, bin_dir):
+@click.pass_context
+def cli(ctx, home, bin_dir):
     """pipsi is a tool that uses virtualenv and pip to install shell
     tools that are separated from each other.
     """
-    if home is not None:
-        repo.home = home
-    if bin_dir is not None:
-        repo.bin_dir = bin_dir
+    ctx.obj = Repo(home, bin_dir)
 
 
 @cli.command()
@@ -298,7 +350,7 @@ def cli(repo, home, bin_dir):
 @click.option('--editable', is_flag=True,
               help='Enable editable installation.  This only works for '
                    'locally installed packages.')
-@pass_repo
+@click.pass_obj
 def install(repo, package, python, editable):
     """Installs scripts from a Python package.
 
@@ -315,7 +367,7 @@ def install(repo, package, python, editable):
 @click.option('--editable', is_flag=True,
               help='Enable editable installation.  This only works for '
                    'locally installed packages.')
-@pass_repo
+@click.pass_obj
 def upgrade(repo, package, editable):
     """Upgrades an already installed package."""
     if repo.upgrade(package, editable):
@@ -325,7 +377,7 @@ def upgrade(repo, package, editable):
 @cli.command(short_help='Uninstalls scripts of a package.')
 @click.argument('package')
 @click.option('--yes', is_flag=True, help='Skips all prompts.')
-@pass_repo
+@click.pass_obj
 def uninstall(repo, package, yes):
     """Uninstalls all scripts of a Python package and cleans up the
     virtualenv.
@@ -346,7 +398,7 @@ def uninstall(repo, package, yes):
 
 
 @cli.command('list')
-@pass_repo
+@click.pass_obj
 def list_cmd(repo):
     """Lists all scripts installed through pipsi."""
     click.echo('Packages and scripts installed through pipsi:')
@@ -356,3 +408,6 @@ def list_cmd(repo):
         click.echo('  Package "%s":' % venv)
         for script in scripts:
             click.echo('    ' + script)
+
+if __name__ == '__main__':
+    cli()
