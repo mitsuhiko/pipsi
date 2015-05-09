@@ -50,6 +50,12 @@ FIND_SCRIPTS_SCRIPT = r'''if 1:
 '''
 
 
+# The `click` custom context settings
+CONTEXT_SETTINGS = dict(
+    help_option_names=['-h', '--help'],
+)
+
+
 def normalize_package(value):
     # Strips the version and normalizes name
     requirement = Requirement.parse(value)
@@ -323,7 +329,7 @@ class Repo(object):
         return sorted(venvs.items())
 
 
-@click.group()
+@click.group(context_settings=CONTEXT_SETTINGS)
 @click.option(
     '--home', type=click.Path(),envvar='PIPSI_HOME',
     default=os.path.expanduser('~/.local/venvs'),
