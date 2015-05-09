@@ -274,9 +274,10 @@ pass_repo = click.make_pass_decorator(Repo, ensure=True)
 
 
 @click.group()
-@click.option('--home', type=click.Path(), default=None,
+@click.option('--home', type=click.Path(), default=None, envvar='PIPSI_HOME',
               help='The folder that contains the virtualenvs.')
 @click.option('--bin-dir', type=click.Path(), default=None,
+              envvar='PIPSI_BIN_DIR',
               help='The path where the scripts are symlinked to.')
 @click.version_option()
 @pass_repo
