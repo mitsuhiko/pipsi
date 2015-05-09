@@ -342,7 +342,8 @@ class Repo(object):
     default=os.path.expanduser('~/.local/bin'),
     help='The path where the scripts are symlinked to.')
 
-@click.version_option()
+@click.version_option(
+    message='%(prog)s, version %(version)s, python ' + str(sys.executable))
 @click.pass_context
 def cli(ctx, home, bin_dir):
     """pipsi is a tool that uses virtualenv and pip to install shell
