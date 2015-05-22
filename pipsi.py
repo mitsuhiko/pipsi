@@ -30,7 +30,7 @@ FIND_SCRIPTS_SCRIPT = r'''if 1:
     dist = pkg_resources.get_distribution(pkg)
     if dist.has_metadata('RECORD'):
         for line in dist.get_metadata_lines('RECORD'):
-            print(line.split(',')[0])
+            print(os.path.join(dist.location, line.split(',')[0]))
     elif dist.has_metadata('installed-files.txt'):
         for line in dist.get_metadata_lines('installed-files.txt'):
             print(os.path.join(dist.egg_info, line.split(',')[0]))
