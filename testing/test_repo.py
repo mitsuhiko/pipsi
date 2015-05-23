@@ -36,6 +36,12 @@ def test_simple_install(repo, home, bin, package, glob):
     assert bin.listdir(glob)
 
 
+@pytest.mark.xfail(sys.version_info[0] != 3,
+                   reason='attic is python3 only')
+def test_simple_install_attic(repo, home, bin):
+    test_simple_install(repo, home, bin, 'attic', 'attic*')
+
+
 def test_find_scripts():
     print('executable ' + sys.executable)
     env = os.path.dirname(
