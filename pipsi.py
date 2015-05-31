@@ -365,6 +365,9 @@ def install(repo, package, python, editable):
     """
     if repo.install(package, python, editable):
         click.echo('Done.')
+    else:
+        sys.exit(1)
+
 
 
 @cli.command()
@@ -377,6 +380,8 @@ def upgrade(repo, package, editable):
     """Upgrades an already installed package."""
     if repo.upgrade(package, editable):
         click.echo('Done.')
+    else:
+        sys.exit(1)
 
 
 @cli.command(short_help='Uninstalls scripts of a package.')
@@ -400,6 +405,7 @@ def uninstall(repo, package, yes):
             click.echo('Done!')
         else:
             click.echo('Aborted!')
+            sys.exit(1)
 
 
 @cli.command('list')
