@@ -16,6 +16,8 @@ else:
     PIP = '/Scripts/pip.exe'
     PIPSI = '/Scripts/pipsi.exe'
 
+DEFAULT_PIPSI_HOME = os.path.expanduser('~/.local/venvs')
+DEFAULT_PIPSI_BIN_DIR = os.path.expanduser('~/.local/bin')
 
 def echo(msg=''):
     sys.stdout.write(msg + '\n')
@@ -86,8 +88,9 @@ def main():
         fail('You need to have virtualenv installed to bootstrap pipsi.')
 
 
-    bin_dir = os.path.expanduser('~/.local/bin')
-    venv = os.path.expanduser('~/.local/venvs/pipsi')
+    bin_dir = os.environ.get('PIPSI_BIN_DIR', DEFAULT_PIPSI_BIN_DIR)
+    venv = os.path.join(os.environ.get('PIPSI_HOME', DEFAULT_PIPSI_HOME),
+                        'pipsi')
     install_files(venv, bin_dir, 'pipsi')
 
     if not command_exists('pipsi') != 0:
@@ -95,11 +98,11 @@ def main():
         echo('=' * 60)
         echo()
         echo('Warning:')
-        echo('  It looks like ~/.local/bin is not on your PATH so pipsi will')
+        echo('  It looks like {0} is not on your PATH so pipsi will'.format(bin_dir))
         echo('  not work out of the box.  To fix this problem make sure to')
         echo('  add this to your .bashrc / .profile file:')
         echo()
-        echo('  export PATH=~/.local/bin:$PATH')
+        echo('  export PATH={0}:$PATH'.format(bin_dir))
         echo()
         echo('=' * 60)
         echo()
