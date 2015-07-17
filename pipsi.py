@@ -352,7 +352,7 @@ def cli(ctx, home, bin_dir):
 @click.argument('package')
 @click.option('--python', default=None,
               help='The python interpreter to use.')
-@click.option('--editable/-e', is_flag=True,
+@click.option('--editable', '-e', is_flag=True,
               help='Enable editable installation.  This only works for '
                    'locally installed packages.')
 @click.pass_obj
@@ -372,7 +372,7 @@ def install(repo, package, python, editable):
 
 @cli.command()
 @click.argument('package')
-@click.option('--editable', is_flag=True,
+@click.option('--editable', '-e', is_flag=True,
               help='Enable editable installation.  This only works for '
                    'locally installed packages.')
 @click.pass_obj
