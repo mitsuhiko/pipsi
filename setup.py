@@ -5,7 +5,7 @@ with open('README.rst', 'rb') as f:
 
 setup(
     name='pipsi',
-    version='0.9.dev',
+    version='0.9',
     description='Wraps pip and virtualenv to install scripts',
     long_description=readme,
     license='BSD',
