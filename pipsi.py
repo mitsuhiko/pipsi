@@ -209,7 +209,7 @@ class Repo(object):
 
         return rv
 
-    def install(self, package, python=None, editable=False):
+    def install(self, package, python=None, editable=False, system_site_packages=False):
         package, install_args = self.resolve_package(package, python)
 
         venv_path = self.get_package_path(package)
@@ -231,6 +231,9 @@ class Repo(object):
 
         # Install virtualenv, use the pipsi used python version by default
         args = ['virtualenv', '-p', python or sys.executable, venv_path]
+
+        if system_site_packages:
+            args.append('--system-site-packages')
 
         try:
             if Popen(args).wait() != 0:
@@ -355,15 +358,18 @@ def cli(ctx, home, bin_dir):
 @click.option('--editable', '-e', is_flag=True,
               help='Enable editable installation.  This only works for '
                    'locally installed packages.')
+@click.option('--system-site-packages', is_flag=True,
+              help='Give the virtual environment access to the global '
+                   'site-packages.')
 @click.pass_obj
-def install(repo, package, python, editable):
+def install(repo, package, python, editable, system_site_packages):
     """Installs scripts from a Python package.
 
     Given a package this will install all the scripts and their dependencies
     of the given Python package into a new virtualenv and symlinks the
     discovered scripts into BIN_DIR (defaults to ~/.local/bin).
     """
-    if repo.install(package, python, editable):
+    if repo.install(package, python, editable, system_site_packages):
         click.echo('Done.')
     else:
         sys.exit(1)
