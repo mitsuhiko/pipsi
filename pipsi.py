@@ -311,21 +311,7 @@ class Repo(object):
             venv_path = os.path.join(self.home, venv)
             if os.path.isdir(venv_path) and \
                os.path.isfile(venv_path + python):
-                venvs[venv] = []
-
-        def _find_venv(target):
-            for venv in venvs:
-                if target.startswith(join(self.home, venv, '')):
-                    return venv
-
-        for script in os.listdir(self.bin_dir):
-            exe = os.path.join(self.bin_dir, script)
-            target = real_readlink(exe)
-            if target is None:
-                continue
-            venv = _find_venv(target)
-            if venv is not None:
-                venvs[venv].append(script)
+                venvs[venv] = list(self.find_installed_executables(venv_path))
 
         return sorted(venvs.items())
 
