@@ -307,11 +307,12 @@ class Repo(object):
     def list_everything(self):
         venvs = {}
         python = '/Scripts/python.exe' if IS_WIN else '/bin/python'
-        for venv in os.listdir(self.home):
-            venv_path = os.path.join(self.home, venv)
-            if os.path.isdir(venv_path) and \
-               os.path.isfile(venv_path + python):
-                venvs[venv] = list(self.find_installed_executables(venv_path))
+        if os.path.isdir(self.home):
+            for venv in os.listdir(self.home):
+                venv_path = os.path.join(self.home, venv)
+                if os.path.isdir(venv_path) and \
+                   os.path.isfile(venv_path + python):
+                    venvs[venv] = list(self.find_installed_executables(venv_path))
 
         return sorted(venvs.items())
 
@@ -404,13 +405,17 @@ def uninstall(repo, package, yes):
 @click.pass_obj
 def list_cmd(repo):
     """Lists all scripts installed through pipsi."""
-    click.echo('Packages and scripts installed through pipsi:')
-    for venv, scripts in repo.list_everything():
-        if not scripts:
-            continue
-        click.echo('  Package "%s":' % venv)
-        for script in scripts:
-            click.echo('    ' + script)
+    list_of_non_empty_venv = [(venv, scripts)
+                              for venv, scripts in repo.list_everything()
+                              if scripts]
+    if list_of_non_empty_venv:
+        click.echo('Packages and scripts installed through pipsi:')
+        for venv, scripts in list_of_non_empty_venv:
+            click.echo('  Package "%s":' % venv)
+            for script in scripts:
+                click.echo('    ' + script)
+    else:
+        click.echo('There are no scripts installed through pipsi')
 
 if __name__ == '__main__':
     cli()
