@@ -4,19 +4,7 @@ import pytest
 from pipsi import Repo, find_scripts
 
 
-@pytest.fixture(params=['normal', 'MixedCase'])
-def mix(request):
-    return request.param
-
-
-@pytest.fixture
-def bin(tmpdir, mix):
-    return tmpdir.ensure(mix, 'bin', dir=1)
-
-
-@pytest.fixture
-def home(tmpdir, mix):
-    return tmpdir.ensure(mix, 'venvs', dir=1)
+pytestmark = pytest.mark.usefixtures("home", "bin", "mix")
 
 
 @pytest.fixture
@@ -40,6 +28,12 @@ def test_simple_install(repo, home, bin, package, glob):
                    reason='attic is python3 only')
 def test_simple_install_attic(repo, home, bin):
     test_simple_install(repo, home, bin, 'attic', 'attic*')
+
+
+def test_list_everything(repo, home, bin):
+    assert not home.listdir()
+    assert not bin.listdir()
+    assert repo.list_everything() == []
 
 
 def test_find_scripts():
