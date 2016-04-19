@@ -4,9 +4,6 @@ import pytest
 from pipsi import Repo, find_scripts
 
 
-pytestmark = pytest.mark.usefixtures("home", "bin", "mix")
-
-
 @pytest.fixture
 def repo(home, bin):
     return Repo(str(home), str(bin))
