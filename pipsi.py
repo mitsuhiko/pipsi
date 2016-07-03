@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 import shutil
@@ -209,6 +210,34 @@ class Repo(object):
 
         return rv
 
+    def get_package_version(self, venv_path, package):
+        from subprocess import Popen, PIPE
+
+        args = [os.path.join(venv_path, BIN_DIR, 'pip'), 'freeze']
+        proc = Popen(args, stdout=PIPE)
+        if proc.wait() != 0:
+            click.echo('Failed to read package version')
+
+        freeze = proc.stdout.read().splitlines()
+        package_prefix = '%s==' % package
+        for line in freeze:
+            if line.startswith(package_prefix):
+                return line.split('==')[1]
+
+    def save_package_info(self, venv_path, package):
+        package_info_file_path = join(venv_path, 'package_info.json')
+        package_name = Requirement.parse(package).project_name
+        version = self.get_package_version(venv_path, package_name)
+
+        package_info = {'name': package_name, 'version': version}
+        with open(package_info_file_path, 'w') as fh:
+            json.dump(package_info, fh)
+
+    def get_package_info(self, venv_path):
+        package_info_file_path = join(venv_path, 'package_info.json')
+        with open(package_info_file_path, 'r') as fh:
+            return json.load(fh)
+
     def install(self, package, python=None, editable=False, system_site_packages=False):
         package, install_args = self.resolve_package(package, python)
 
@@ -257,6 +286,8 @@ class Repo(object):
         # And link them
         linked_scripts = self.link_scripts(scripts)
 
+        self.save_package_info(venv_path, package)
+
         # We did not link any, rollback.
         if not linked_scripts:
             click.echo('Did not find any scripts.  Uninstalling.')
@@ -304,14 +335,22 @@ class Repo(object):
                 except (IOError, OSError):
                     pass
 
-    def list_everything(self):
+        self.save_package_info(venv_path, package)
+
+    def list_everything(self, versions=False):
         venvs = {}
         python = '/Scripts/python.exe' if IS_WIN else '/bin/python'
         for venv in os.listdir(self.home):
             venv_path = os.path.join(self.home, venv)
             if os.path.isdir(venv_path) and \
                os.path.isfile(venv_path + python):
-                venvs[venv] = list(self.find_installed_executables(venv_path))
+                version = None
+                if versions:
+                    try:
+                        version = self.get_package_info(venv_path)['version']
+                    except:
+                        pass
+                venvs[venv] = [list(self.find_installed_executables(venv_path)), version]
 
         return sorted(venvs.items())
 
@@ -401,14 +440,19 @@ def uninstall(repo, package, yes):
 
 
 @cli.command('list')
+@click.option('--versions', is_flag=True,
+              help='Show packages version')
 @click.pass_obj
-def list_cmd(repo):
+def list_cmd(repo, versions):
     """Lists all scripts installed through pipsi."""
     click.echo('Packages and scripts installed through pipsi:')
-    for venv, scripts in repo.list_everything():
+    for venv, (scripts, version) in repo.list_everything(versions):
         if not scripts:
             continue
-        click.echo('  Package "%s":' % venv)
+        if versions:
+            click.echo('  Package "%s" (%s):' % (venv, version or 'unknown'))
+        else:
+            click.echo('  Package "%s":' % venv)
         for script in scripts:
             click.echo('    ' + script)
 
