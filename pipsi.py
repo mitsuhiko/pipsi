@@ -304,6 +304,8 @@ class Repo(object):
                 except (IOError, OSError):
                     pass
 
+        return True
+
     def list_everything(self):
         venvs = {}
         python = '/Scripts/python.exe' if IS_WIN else '/bin/python'

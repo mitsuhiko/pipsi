@@ -34,6 +34,7 @@ def test_simple_install(repo, home, bin, package, glob):
     repo.install(package)
     assert home.join(package).check()
     assert bin.listdir(glob)
+    assert repo.upgrade(package)
 
 
 @pytest.mark.xfail(sys.version_info[0] != 3,
