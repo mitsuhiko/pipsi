@@ -16,6 +16,18 @@ else:
     PIP = '/Scripts/pip.exe'
     PIPSI = '/Scripts/pipsi.exe'
 
+try:
+    import virtualenv
+    venv_pkg = 'virtualenv'
+    del virtualenv
+except ImportError:
+    try:
+        import venv
+        venv_pkg = 'venv'
+        del venv
+    except ImportError:
+        venv_pkg = None
+
 DEFAULT_PIPSI_HOME = os.path.expanduser('~/.local/venvs')
 DEFAULT_PIPSI_BIN_DIR = os.path.expanduser('~/.local/bin')
 
@@ -67,7 +79,7 @@ def install_files(venv, bin_dir, install):
         except (OSError, IOError):
             pass
 
-    if call(['virtualenv', venv]) != 0:
+    if call([sys.executable, '-m', venv_pkg, venv]) != 0:
         _cleanup()
         fail('Could not create virtualenv for pipsi :(')
 
@@ -84,9 +96,8 @@ def main():
     else:
         echo('Installing pipsi')
 
-    if not command_exists('virtualenv'):
+    if venv_pkg is None:
         fail('You need to have virtualenv installed to bootstrap pipsi.')
-
 
     bin_dir = os.environ.get('PIPSI_BIN_DIR', DEFAULT_PIPSI_BIN_DIR)
     venv = os.path.join(os.environ.get('PIPSI_HOME', DEFAULT_PIPSI_HOME),
