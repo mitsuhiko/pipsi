@@ -1,8 +1,10 @@
 #!/usr/bin/env python
+import argparse
 import os
+import shutil
 import sys
 from subprocess import call
-import shutil
+import textwrap
 
 
 try:
@@ -78,7 +80,41 @@ def install_files(venv, bin_dir, install):
     publish_script(venv, bin_dir)
 
 
-def main():
+def parse_options(argv):
+    bin_dir = os.environ.get('PIPSI_BIN_DIR', DEFAULT_PIPSI_BIN_DIR)
+    home_dir = os.environ.get('PIPSI_HOME', DEFAULT_PIPSI_HOME)
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '--bin-dir',
+        default=bin_dir,
+        help=(
+            'Executables will be installed into this folder. '
+            'Default: %(default)s'
+        ),
+    )
+    parser.add_argument(
+        '--home',
+        dest='home_dir',
+        default=home_dir,
+        help='Virtualenvs are created in this folder. Default: %(default)s',
+    )
+    parser.add_argument(
+        '--src',
+        default='pipsi',
+        help=(
+            'The specific version of pipsi to install. This value is passed '
+            'to "pip install <value>". For example, to install from master '
+            'use "git+https://github.com/mitsuhiko/pipsi.git#egg=pipsi". '
+            'Default: %(default)s'
+        ),
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv=sys.argv[1:]):
+    args = parse_options(argv)
+
     if command_exists('pipsi'):
         succeed('You already have pipsi installed')
     else:
@@ -87,32 +123,27 @@ def main():
     if not command_exists('virtualenv'):
         fail('You need to have virtualenv installed to bootstrap pipsi.')
 
+    venv = os.path.join(args.home_dir, 'pipsi')
+    install_files(venv, args.bin_dir, args.src)
 
-    bin_dir = os.environ.get('PIPSI_BIN_DIR', DEFAULT_PIPSI_BIN_DIR)
-    venv = os.path.join(os.environ.get('PIPSI_HOME', DEFAULT_PIPSI_HOME),
-                        'pipsi')
-    install_files(venv, bin_dir, 'pipsi')
+    if not command_exists('pipsi'):
+        echo(textwrap.dedent(
+            '''
+            %(sep)s
 
-    if not command_exists('pipsi') != 0:
-        echo()
-        echo('=' * 60)
-        echo()
-        echo('Warning:')
-        echo('  It looks like {0} is not on your PATH so pipsi will'.format(bin_dir))
-        echo('  not work out of the box.  To fix this problem make sure to')
-        echo('  add this to your .bashrc / .profile file:')
-        echo()
-        echo('  export PATH={0}:$PATH'.format(bin_dir))
-        echo()
-        echo('=' * 60)
-        echo()
+            Warning:
+              It looks like %(bin_dir)s is not on your PATH so pipsi will not
+              work out of the box. To fix this problem make sure to add this to
+              your .bashrc / .profile file:
+
+              export PATH=%(bin_dir)s:$PATH
+
+            %(sep)s
+            ''' % dict(sep='=' * 60, bin_dir=args.bin_dir)
+        ))
 
     succeed('pipsi is now installed.')
 
 
 if __name__ == '__main__':
-    if len(sys.argv) > 1:
-        # we are being tested
-        install_files(*sys.argv[1:])
-    else:
-        main()
+    main()
