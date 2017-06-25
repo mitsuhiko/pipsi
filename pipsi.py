@@ -156,7 +156,7 @@ class UninstallInfo(object):
 class Repo(object):
 
     def __init__(self, home, bin_dir):
-        self.home = home
+        self.home = realpath(home)
         self.bin_dir = bin_dir
 
     def resolve_package(self, spec, python=None):
