@@ -344,17 +344,18 @@ class Repo(object):
     def list_everything(self, versions=False):
         venvs = {}
         python = '/Scripts/python.exe' if IS_WIN else '/bin/python'
-        for venv in os.listdir(self.home):
-            venv_path = os.path.join(self.home, venv)
-            if os.path.isdir(venv_path) and \
-               os.path.isfile(venv_path + python):
-                version = None
-                if versions:
-                    try:
-                        version = self.get_package_info(venv_path)['version']
-                    except:
-                        pass
-                venvs[venv] = [list(self.find_installed_executables(venv_path)), version]
+        if os.path.isdir(self.home):
+            for venv in os.listdir(self.home):
+                venv_path = os.path.join(self.home, venv)
+                if os.path.isdir(venv_path) and \
+                   os.path.isfile(venv_path + python):
+                    version = None
+                    if versions:
+                        try:
+                            version = self.get_package_info(venv_path)['version']
+                        except:
+                            pass
+                    venvs[venv] = [list(self.find_installed_executables(venv_path)), version]
 
         return sorted(venvs.items())
 
@@ -449,16 +450,20 @@ def uninstall(repo, package, yes):
 @click.pass_obj
 def list_cmd(repo, versions):
     """Lists all scripts installed through pipsi."""
-    click.echo('Packages and scripts installed through pipsi:')
-    for venv, (scripts, version) in repo.list_everything(versions):
-        if not scripts:
-            continue
-        if versions:
-            click.echo('  Package "%s" (%s):' % (venv, version or 'unknown'))
-        else:
-            click.echo('  Package "%s":' % venv)
-        for script in scripts:
-            click.echo('    ' + script)
+    list_of_non_empty_venv = [(venv, scripts)
+                              for venv, scripts in repo.list_everything()
+                              if scripts]
+    if list_of_non_empty_venv:
+        click.echo('Packages and scripts installed through pipsi:')
+        for venv, (scripts, version) in repo.list_everything(versions):
+            if versions:
+                click.echo('  Package "%s" (%s):' % (venv, version or 'unknown'))
+            else:
+                click.echo('  Package "%s":' % venv)
+                for script in scripts:
+                    click.echo('    ' + script)
+    else:
+        click.echo('There are no scripts installed through pipsi')
 
 if __name__ == '__main__':
     cli()
