@@ -9,6 +9,7 @@ def test_create_env(tmpdir):
         '--home', str(tmpdir.join('venv')),
         '--bin-dir', str(tmpdir.join('test_bin')),
         '--src', '.',
+        '--ignore-existing',
     ])
     if IS_WIN:
         subprocess.check_call([

@@ -21,6 +21,7 @@ else:
 DEFAULT_PIPSI_HOME = os.path.expanduser('~/.local/venvs')
 DEFAULT_PIPSI_BIN_DIR = os.path.expanduser('~/.local/bin')
 
+
 def echo(msg=''):
     sys.stdout.write(msg + '\n')
     sys.stdout.flush()
@@ -109,13 +110,21 @@ def parse_options(argv):
             'Default: %(default)s'
         ),
     )
+    parser.add_argument(
+        '--ignore-existing',
+        action='store_true',
+        help=(
+            "ignore versions of pipsi already installed. "
+            "Use this to ignore a package manager based install or for testing"
+        ),
+    )
     return parser.parse_args(argv)
 
 
 def main(argv=sys.argv[1:]):
     args = parse_options(argv)
 
-    if command_exists('pipsi'):
+    if command_exists('pipsi') and not args.ignore_existing:
         succeed('You already have pipsi installed')
     else:
         echo('Installing pipsi')
