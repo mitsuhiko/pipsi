@@ -156,7 +156,7 @@ class UninstallInfo(object):
 class Repo(object):
 
     def __init__(self, home, bin_dir):
-        self.home = home
+        self.home = realpath(home)
         self.bin_dir = bin_dir
 
     def resolve_package(self, spec, python=None):
@@ -230,7 +230,7 @@ class Repo(object):
             return False
 
         # Install virtualenv, use the pipsi used python version by default
-        args = ['virtualenv', '-p', python or sys.executable, venv_path]
+        args = [sys.executable, '-m', 'virtualenv', '-p', python or sys.executable, venv_path]
 
         if system_site_packages:
             args.append('--system-site-packages')
