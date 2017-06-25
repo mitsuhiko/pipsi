@@ -34,10 +34,15 @@ def test_simple_install(repo, home, bin, package, glob):
     repo.install(package)
     assert home.join(package).check()
     assert bin.listdir(glob)
+    assert repo.upgrade(package)
 
 
-@pytest.mark.xfail(sys.version_info[0] != 3,
-                   reason='attic is python3 only')
+@pytest.mark.xfail(
+    sys.version_info[0] != 3,
+    reason='attic is python3 only', run=False)
+@pytest.mark.xfail(
+    'TRAVIS' in os.environ,
+    reason='attic won\'t build on travis', run=False)
 def test_simple_install_attic(repo, home, bin):
     test_simple_install(repo, home, bin, 'attic', 'attic*')
 

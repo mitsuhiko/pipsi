@@ -51,6 +51,13 @@ FIND_SCRIPTS_SCRIPT = r'''if 1:
 '''
 
 
+GET_VERSION_SCRIPT = '''if 1:
+    import pkg_resources
+    pkg = sys.argv[1]
+    dist = pkg_resources.get_distribution(pkg)
+    print(dist.version)
+'''
+
 # The `click` custom context settings
 CONTEXT_SETTINGS = dict(
     help_option_names=['-h', '--help'],
@@ -108,6 +115,15 @@ def publish_script(src, dst):
             return True
 
 
+def extract_package_version(virtualenv, package):
+    prefix = normalize(join(virtualenv, BIN_DIR, ''))
+
+    return statusoutput([
+        join(prefix, 'python'), '-c', GET_VERSION_SCRIPT,
+        package,
+    ])[1].strip()
+
+
 def find_scripts(virtualenv, package):
     prefix = normalize(join(virtualenv, BIN_DIR, ''))
 
@@ -157,7 +173,7 @@ class UninstallInfo(object):
 class Repo(object):
 
     def __init__(self, home, bin_dir):
-        self.home = home
+        self.home = realpath(home)
         self.bin_dir = bin_dir
 
     def resolve_package(self, spec, python=None):
@@ -210,24 +226,10 @@ class Repo(object):
 
         return rv
 
-    def get_package_version(self, venv_path, package):
-        from subprocess import Popen, PIPE
-
-        args = [os.path.join(venv_path, BIN_DIR, 'pip'), 'freeze']
-        proc = Popen(args, stdout=PIPE)
-        if proc.wait() != 0:
-            click.echo('Failed to read package version')
-
-        freeze = proc.stdout.read().splitlines()
-        package_prefix = '%s==' % package
-        for line in freeze:
-            if line.startswith(package_prefix):
-                return line.split('==')[1]
-
     def save_package_info(self, venv_path, package):
         package_info_file_path = join(venv_path, 'package_info.json')
         package_name = Requirement.parse(package).project_name
-        version = self.get_package_version(venv_path, package_name)
+        version = extract_package_version(venv_path, package_name)
 
         package_info = {'name': package_name, 'version': version}
         with open(package_info_file_path, 'w') as fh:
@@ -259,7 +261,7 @@ class Repo(object):
             return False
 
         # Install virtualenv, use the pipsi used python version by default
-        args = ['virtualenv', '-p', python or sys.executable, venv_path]
+        args = [sys.executable, '-m', 'virtualenv', '-p', python or sys.executable, venv_path]
 
         if system_site_packages:
             args.append('--system-site-packages')
@@ -334,6 +336,8 @@ class Repo(object):
                     os.remove(script_link)
                 except (IOError, OSError):
                     pass
+
+        return True
 
         self.save_package_info(venv_path, package)
 
