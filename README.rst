@@ -19,7 +19,8 @@ How do I get it?
 How does it work?
 
 pipsi installs each package into ~/.local/venvs/PKGNAME and then
-symlinks all new scripts into ~/.local/bin.
+symlinks all new scripts into ~/.local/bin (these can be changed
+by PIPSI_HOME and PIPSI_BIN_DIR env variables respectively).
 
 Installing scripts from a package::
 
