@@ -369,12 +369,12 @@ class Repo(object):
 @click.group(context_settings=CONTEXT_SETTINGS)
 @click.option(
     '--home', type=click.Path(),envvar='PIPSI_HOME',
-    default=os.path.expanduser('~/.local/venvs'),
+    default=os.path.join(os.path.expanduser('~'), '.local', 'venvs'),
     help='The folder that contains the virtualenvs.')
 @click.option(
     '--bin-dir', type=click.Path(),
     envvar='PIPSI_BIN_DIR',
-    default=os.path.expanduser('~/.local/bin'),
+    default=os.path.join(os.path.expanduser('~'), '.local', 'bin'),
     help='The path where the scripts are symlinked to.')
 
 @click.version_option(
