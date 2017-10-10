@@ -52,7 +52,7 @@ FIND_SCRIPTS_SCRIPT = r'''if 1:
 
 
 GET_VERSION_SCRIPT = '''if 1:
-    import pkg_resources
+    import sys, pkg_resources
     pkg = sys.argv[1]
     dist = pkg_resources.get_distribution(pkg)
     print(dist.version)
