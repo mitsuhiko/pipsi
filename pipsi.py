@@ -203,19 +203,6 @@ class Repo(object):
     def get_package_path(self, package):
         return join(self.home, normalize_package(package))
 
-    def find_installed_executables(self, path):
-        prefix = join(realpath(normpath(path)), '')
-        try:
-            for filename in os.listdir(self.bin_dir):
-                exe = os.path.join(self.bin_dir, filename)
-                target = real_readlink(exe)
-                if target is None:
-                    continue
-                if target.startswith(prefix):
-                    yield exe
-        except OSError:
-            pass
-
     def link_scripts(self, scripts):
         rv = []
         for script in scripts:
@@ -226,12 +213,16 @@ class Repo(object):
 
         return rv
 
-    def save_package_info(self, venv_path, package):
+    def save_package_info(self, venv_path, package, scripts):
         package_info_file_path = join(venv_path, 'package_info.json')
         package_name = Requirement.parse(package).project_name
         version = extract_package_version(venv_path, package_name)
 
-        package_info = {'name': package_name, 'version': version}
+        package_info = {
+            'name': package_name,
+            'version': version,
+            'scripts': [script for target, script in scripts],
+        }
         with open(package_info_file_path, 'w') as fh:
             json.dump(package_info, fh)
 
@@ -288,7 +279,7 @@ class Repo(object):
         # And link them
         linked_scripts = self.link_scripts(scripts)
 
-        self.save_package_info(venv_path, package)
+        self.save_package_info(venv_path, package, linked_scripts)
 
         # We did not link any, rollback.
         if not linked_scripts:
@@ -301,7 +292,7 @@ class Repo(object):
         if not os.path.isdir(path):
             return UninstallInfo(package, installed=False)
         paths = [path]
-        paths.extend(self.find_installed_executables(path))
+        paths.extend(self.get_package_info(path)['scripts'])
         return UninstallInfo(package, paths)
 
     def upgrade(self, package, editable=False):
@@ -314,7 +305,7 @@ class Repo(object):
 
         from subprocess import Popen
 
-        old_scripts = set(find_scripts(venv_path, package))
+        old_scripts = set(self.get_package_info(venv_path)['scripts'])
 
         args = [os.path.join(venv_path, BIN_DIR, 'pip'), 'install',
                 '--upgrade']
@@ -327,19 +318,18 @@ class Repo(object):
 
         scripts = find_scripts(venv_path, package)
         linked_scripts = self.link_scripts(scripts)
-        to_delete = old_scripts - set(x[0] for x in linked_scripts)
+        to_delete = old_scripts - set(script for target, script in linked_scripts)
 
-        for script_src, script_link in linked_scripts:
-            if script_src in to_delete:
-                try:
-                    click.echo('  Removing old script %s' % script_src)
-                    os.remove(script_link)
-                except (IOError, OSError):
-                    pass
+        for script in to_delete:
+            try:
+                click.echo('  Removing old script %s' % script)
+                os.remove(script)
+            except (IOError, OSError):
+                pass
 
         return True
 
-        self.save_package_info(venv_path, package)
+        self.save_package_info(venv_path, package, linked_scripts)
 
     def list_everything(self, versions=False):
         venvs = {}
@@ -349,13 +339,11 @@ class Repo(object):
                 venv_path = os.path.join(self.home, venv)
                 if os.path.isdir(venv_path) and \
                    os.path.isfile(venv_path + python):
+                    info = self.get_package_info(venv_path)
                     version = None
                     if versions:
-                        try:
-                            version = self.get_package_info(venv_path)['version']
-                        except:
-                            pass
-                    venvs[venv] = [list(self.find_installed_executables(venv_path)), version]
+                        version = info.get('version')
+                    venvs[venv] = [info.get('scripts', []), version]
 
         return sorted(venvs.items())
 
