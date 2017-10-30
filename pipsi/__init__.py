@@ -168,12 +168,18 @@ class Repo(object):
         else:
             return spec, [spec]
 
+        if not os.path.exists(join(location, 'setup.py')):
+            raise click.UsageError('%s does not appear to be a local '
+                                   'Python package.' % spec)
+
         error, name, errmsg = statusoutput(
             [python or sys.executable, 'setup.py', '--name'],
             cwd=location)
         if error:
-            raise click.UsageError('%s does not appear to be a local '
-                                   'Python package.' % spec)
+            raise click.UsageError(
+                '%s does not appear to be a valid '
+                'package. Error from setup.py: %s' % (spec, errmsg)
+            )
 
         return name, [location]
 
