@@ -4,6 +4,7 @@ import pkgutil
 import sys
 import shutil
 import glob
+from collections import namedtuple
 from os.path import join, realpath, dirname, normpath, normcase
 from operator import methodcaller
 try:
@@ -50,14 +51,22 @@ def real_readlink(filename):
     return normpath(realpath(join(dirname(filename), target)))
 
 
+SubprocessResult = namedtuple('SubprocessResult', ('returncode', 'out', 'err'))
+
+
 def statusoutput(argv, **kw):
     from subprocess import Popen, PIPE
+
+    def proc_output(s):
+        s = s.strip()
+        if not isinstance(s, str):
+            s = s.decode('utf-8', 'replace')
+        return s
+
     p = Popen(
         argv, stdout=PIPE, stderr=PIPE, **kw)
-    output = p.communicate()[0].strip()
-    if not isinstance(output, str):
-        output = output.decode('utf-8', 'replace')
-    return p.returncode, output
+    out, err = map(proc_output, p.communicate())
+    return SubprocessResult(p.returncode, out, err)
 
 
 def publish_script(src, dst):
@@ -159,7 +168,7 @@ class Repo(object):
         else:
             return spec, [spec]
 
-        error, name = statusoutput(
+        error, name, errmsg = statusoutput(
             [python or sys.executable, 'setup.py', '--name'],
             cwd=location)
         if error:
