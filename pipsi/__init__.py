@@ -3,10 +3,32 @@ import os
 import pkgutil
 import sys
 import shutil
+import subprocess
 import glob
 from collections import namedtuple
 from os.path import join, realpath, dirname, normpath, normcase
 from operator import methodcaller
+try:
+    import functools
+    run = functools.partial(subprocess.run,
+                            encoding='utf-8', errors='replace',
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if sys.version_info < (3, 6):
+        def run(*args, **kw):
+            kw.update(stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            r = subprocess.run(*args, **kw)
+            r.stdout = proc_output(r.stdout)
+            r.stderr = proc_output(r.stderr)
+            return r
+except AttributeError:  # no `subprocess.run`, py < 3.5
+    CompletedProcess = namedtuple('CompletedProcess',
+                                  ('args', 'returncode', 'stdout', 'stderr'))
+
+    def run(argv, **kw):
+        p = subprocess.Popen(
+            argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **kw)
+        out, err = map(proc_output, p.communicate())
+        return CompletedProcess(argv, p.returncode, out, err)
 try:
     from urlparse import urlparse
 except ImportError:
@@ -33,6 +55,15 @@ CONTEXT_SETTINGS = dict(
 )
 
 
+def proc_output(s):
+    # won't be needed in Python >= 3.6 where it can be replaced with
+    # (encoding, errors) parameters to `run/Popen`
+    s = s.strip()
+    if not isinstance(s, str):
+        s = s.decode('utf-8', 'replace')
+    return s
+
+
 def normalize_package(value):
     # Strips the version and normalizes name
     requirement = Requirement.parse(value)
@@ -49,24 +80,6 @@ def real_readlink(filename):
     except (OSError, IOError, AttributeError):
         return None
     return normpath(realpath(join(dirname(filename), target)))
-
-
-SubprocessResult = namedtuple('SubprocessResult', ('returncode', 'out', 'err'))
-
-
-def statusoutput(argv, **kw):
-    from subprocess import Popen, PIPE
-
-    def proc_output(s):
-        s = s.strip()
-        if not isinstance(s, str):
-            s = s.decode('utf-8', 'replace')
-        return s
-
-    p = Popen(
-        argv, stdout=PIPE, stderr=PIPE, **kw)
-    out, err = map(proc_output, p.communicate())
-    return SubprocessResult(p.returncode, out, err)
 
 
 def publish_script(src, dst):
@@ -95,19 +108,19 @@ def publish_script(src, dst):
 def extract_package_version(virtualenv, package):
     prefix = normalize(join(virtualenv, BIN_DIR, ''))
 
-    return statusoutput([
+    return run([
         join(prefix, 'python'), '-c', GET_VERSION_SCRIPT,
         package,
-    ])[1].strip()
+    ]).stdout.strip()
 
 
 def find_scripts(virtualenv, package):
     prefix = normalize(join(virtualenv, BIN_DIR, ''))
 
-    files = statusoutput([
+    files = run([
         join(prefix, 'python'), '-c', FIND_SCRIPTS_SCRIPT,
         package, prefix
-    ])[1].splitlines()
+    ]).stdout.splitlines()
 
     files = map(normalize, files)
     files = filter(
@@ -172,14 +185,15 @@ class Repo(object):
             raise click.UsageError('%s does not appear to be a local '
                                    'Python package.' % spec)
 
-        error, name, errmsg = statusoutput(
+        res = run(
             [python or sys.executable, 'setup.py', '--name'],
             cwd=location)
-        if error:
+        if res.returncode:
             raise click.UsageError(
                 '%s does not appear to be a valid '
-                'package. Error from setup.py: %s' % (spec, errmsg)
+                'package. Error from setup.py: %s' % (spec, res.stderr)
             )
+        name = res.stdout
 
         return name, [location]
 
