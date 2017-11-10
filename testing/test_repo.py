@@ -11,7 +11,7 @@ def repo(home, bin):
 
 @pytest.mark.parametrize('package, glob', [
     ('grin', 'grin*'),
-    ('pipsi', 'pipsi*'),
+#    ('pipsi', 'pipsi*'),
 ])
 def test_simple_install(repo, home, bin, package, glob):
     assert not home.listdir()
