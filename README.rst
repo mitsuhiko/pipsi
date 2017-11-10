@@ -22,6 +22,10 @@ pipsi installs each package into ~/.local/venvs/PKGNAME and then
 symlinks all new scripts into ~/.local/bin (these can be changed
 by PIPSI_HOME and PIPSI_BIN_DIR env variables respectively).
 
+Compared to `pip install --user` each `PKGNAME` is installed into its
+own virtualenv, so you don't have to worry about different `PKGNAME`s
+having conflicting dependencies.
+
 Installing scripts from a package::
 
       $ pipsi install Pygments
