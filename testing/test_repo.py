@@ -11,7 +11,8 @@ def repo(home, bin):
 
 @pytest.mark.parametrize('package, glob', [
     ('grin', 'grin*'),
-    ('pipsi', 'pipsi*'),
+    pytest.param('pipsi', 'pipsi*',
+                 marks=pytest.mark.xfail(reason="Clashes with local pipsi directory")),
 ])
 def test_simple_install(repo, home, bin, package, glob):
     assert not home.listdir()

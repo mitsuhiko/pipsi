@@ -12,7 +12,11 @@ setup(
     author='Armin Ronacher',
     author_email='armin.ronacher@active-4.com',
     url='http://github.com/mitsuhiko/pipsi/',
-    py_modules=['pipsi'],
+    packages=['pipsi'],
+    package_data={
+        'pipsi': ['scripts/*.py'],
+    },
+    include_package_data=True,
     install_requires=[
         'Click',
         'virtualenv',
