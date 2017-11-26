@@ -9,17 +9,13 @@ from collections import namedtuple
 from os.path import join, realpath, dirname, normpath, normcase
 from operator import methodcaller
 try:
-    import functools
-    run = functools.partial(subprocess.run,
-                            encoding='utf-8', errors='replace',
-                            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    if sys.version_info < (3, 6):
-        def run(*args, **kw):
-            kw.update(stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            r = subprocess.run(*args, **kw)
-            r.stdout = proc_output(r.stdout)
-            r.stderr = proc_output(r.stderr)
-            return r
+    subprocess.run
+
+    def run(*args, **kw):
+        kw.update(stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        r = subprocess.run(*args, **kw)
+        r.stdout, r.stderr = map(proc_output, (r.stdout, r.stderr))
+        return r
 except AttributeError:  # no `subprocess.run`, py < 3.5
     CompletedProcess = namedtuple('CompletedProcess',
                                   ('args', 'returncode', 'stdout', 'stderr'))
@@ -56,8 +52,6 @@ CONTEXT_SETTINGS = dict(
 
 
 def proc_output(s):
-    # won't be needed in Python >= 3.6 where it can be replaced with
-    # (encoding, errors) parameters to `run/Popen`
     s = s.strip()
     if not isinstance(s, str):
         s = s.decode('utf-8', 'replace')
