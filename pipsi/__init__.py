@@ -345,9 +345,9 @@ class Repo(object):
             except (IOError, OSError):
                 pass
 
-        return True
-
         self.save_package_info(venv_path, package, linked_scripts)
+
+        return True
 
     def list_everything(self, versions=False):
         venvs = {}
