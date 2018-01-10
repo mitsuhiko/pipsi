@@ -1,10 +1,30 @@
 import json
 import os
+import pkgutil
 import sys
 import shutil
+import subprocess
 import glob
+from collections import namedtuple
 from os.path import join, realpath, dirname, normpath, normcase
 from operator import methodcaller
+try:
+    subprocess.run
+
+    def run(*args, **kw):
+        kw.update(stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        r = subprocess.run(*args, **kw)
+        r.stdout, r.stderr = map(proc_output, (r.stdout, r.stderr))
+        return r
+except AttributeError:  # no `subprocess.run`, py < 3.5
+    CompletedProcess = namedtuple('CompletedProcess',
+                                  ('args', 'returncode', 'stdout', 'stderr'))
+
+    def run(argv, **kw):
+        p = subprocess.Popen(
+            argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **kw)
+        out, err = map(proc_output, p.communicate())
+        return CompletedProcess(argv, p.returncode, out, err)
 try:
     from urlparse import urlparse
 except ImportError:
@@ -22,46 +42,20 @@ else:
     IS_WIN = True
     BIN_DIR = 'Scripts'
 
-FIND_SCRIPTS_SCRIPT = r'''if 1:
-    import os
-    import sys
-    import pkg_resources
-    pkg = sys.argv[1]
-    prefix = sys.argv[2]
-    dist = pkg_resources.get_distribution(pkg)
-    if dist.has_metadata('RECORD'):
-        for line in dist.get_metadata_lines('RECORD'):
-            print(os.path.join(dist.location, line.split(',')[0]))
-    elif dist.has_metadata('installed-files.txt'):
-        for line in dist.get_metadata_lines('installed-files.txt'):
-            print(os.path.join(dist.egg_info, line.split(',')[0]))
-    elif dist.has_metadata('entry_points.txt'):
-        try:
-            from ConfigParser import SafeConfigParser
-            from StringIO import StringIO
-        except ImportError:
-            from configparser import SafeConfigParser
-            from io import StringIO
-        parser = SafeConfigParser()
-        parser.readfp(StringIO(
-            '\n'.join(dist.get_metadata_lines('entry_points.txt'))))
-        if parser.has_section('console_scripts'):
-            for name, _ in parser.items('console_scripts'):
-                print(os.path.join(prefix, name))
-'''
-
-
-GET_VERSION_SCRIPT = '''if 1:
-    import sys, pkg_resources
-    pkg = sys.argv[1]
-    dist = pkg_resources.get_distribution(pkg)
-    print(dist.version)
-'''
+FIND_SCRIPTS_SCRIPT = pkgutil.get_data('pipsi', 'scripts/find_scripts.py').decode('utf-8')
+GET_VERSION_SCRIPT = pkgutil.get_data('pipsi', 'scripts/get_version.py').decode('utf-8')
 
 # The `click` custom context settings
 CONTEXT_SETTINGS = dict(
     help_option_names=['-h', '--help'],
 )
+
+
+def proc_output(s):
+    s = s.strip()
+    if not isinstance(s, str):
+        s = s.decode('utf-8', 'replace')
+    return s
 
 
 def normalize_package(value):
@@ -80,16 +74,6 @@ def real_readlink(filename):
     except (OSError, IOError, AttributeError):
         return None
     return normpath(realpath(join(dirname(filename), target)))
-
-
-def statusoutput(argv, **kw):
-    from subprocess import Popen, PIPE
-    p = Popen(
-        argv, stdout=PIPE, stderr=PIPE, **kw)
-    output = p.communicate()[0].strip()
-    if not isinstance(output, str):
-        output = output.decode('utf-8', 'replace')
-    return p.returncode, output
 
 
 def publish_script(src, dst):
@@ -118,19 +102,19 @@ def publish_script(src, dst):
 def extract_package_version(virtualenv, package):
     prefix = normalize(join(virtualenv, BIN_DIR, ''))
 
-    return statusoutput([
+    return run([
         join(prefix, 'python'), '-c', GET_VERSION_SCRIPT,
         package,
-    ])[1].strip()
+    ]).stdout.strip()
 
 
 def find_scripts(virtualenv, package):
     prefix = normalize(join(virtualenv, BIN_DIR, ''))
 
-    files = statusoutput([
+    files = run([
         join(prefix, 'python'), '-c', FIND_SCRIPTS_SCRIPT,
         package, prefix
-    ])[1].splitlines()
+    ]).stdout.splitlines()
 
     files = map(normalize, files)
     files = filter(
@@ -191,12 +175,19 @@ class Repo(object):
         else:
             return spec, [spec]
 
-        error, name = statusoutput(
-            [python or sys.executable, 'setup.py', '--name'],
-            cwd=location)
-        if error:
+        if not os.path.exists(join(location, 'setup.py')):
             raise click.UsageError('%s does not appear to be a local '
                                    'Python package.' % spec)
+
+        res = run(
+            [python or sys.executable, 'setup.py', '--name'],
+            cwd=location)
+        if res.returncode:
+            raise click.UsageError(
+                '%s does not appear to be a valid '
+                'package. Error from setup.py: %s' % (spec, res.stderr)
+            )
+        name = res.stdout
 
         return name, [location]
 
