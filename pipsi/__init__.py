@@ -194,6 +194,33 @@ class Repo(object):
     def get_package_path(self, package):
         return join(self.home, normalize_package(package))
 
+    def find_installed_executables(self, path):
+        prefix = join(realpath(normpath(path)), '')
+        try:
+            for filename in os.listdir(self.bin_dir):
+                exe = os.path.join(self.bin_dir, filename)
+                target = real_readlink(exe)
+                if target is None:
+                    continue
+                if target.startswith(prefix):
+                    yield exe
+        except OSError:
+            pass
+
+    def get_package_scripts(self, path):
+        """Get the scripts installed for PATH
+
+        Looks for package metadata listing which scripts were
+        installed. If there is no metadata (package was installed
+         with an older version of pipsi) then fall back to the old
+         find_installed_executables method.
+        """
+        info = self.get_package_info(path)
+        if 'scripts' in info:
+            return info['scripts']
+        # No script metadata - fall back to older method of searching for executables
+        return self.find_installed_executables(path)
+
     def link_scripts(self, scripts):
         rv = []
         for script in scripts:
@@ -283,7 +310,7 @@ class Repo(object):
         if not os.path.isdir(path):
             return UninstallInfo(package, installed=False)
         paths = [path]
-        paths.extend(self.get_package_info(path)['scripts'])
+        paths.extend(self.get_package_scripts(path))
         return UninstallInfo(package, paths)
 
     def upgrade(self, package, editable=False):
@@ -296,7 +323,7 @@ class Repo(object):
 
         from subprocess import Popen
 
-        old_scripts = set(self.get_package_info(venv_path)['scripts'])
+        old_scripts = set(self.get_package_scripts(venv_path))
 
         args = [os.path.join(venv_path, BIN_DIR, 'pip'), 'install',
                 '--upgrade']
