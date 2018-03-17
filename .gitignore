@@ -8,3 +8,4 @@ build
 .tox/
 .env/
 .cache/
+.pytest_cache/
