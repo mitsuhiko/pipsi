@@ -1,3 +1,4 @@
+import os.path
 import sys
 import subprocess
 from pipsi import IS_WIN
@@ -11,11 +12,10 @@ def test_create_env(tmpdir):
         '--src', '.',
         '--ignore-existing',
     ])
-    if IS_WIN:
-        subprocess.check_call([
-            str(tmpdir.join('test_bin/pipsi.exe'))
-        ])
-    else:
-        subprocess.check_call([
-            str(tmpdir.join('test_bin/pipsi'))
-        ])
+    pipsi_bin = str(tmpdir.join('test_bin/pipsi' + ('.exe' if IS_WIN else '')))
+
+    subprocess.check_call([pipsi_bin])
+
+    python = os.path.basename(sys.executable)
+    version_out = subprocess.check_output([pipsi_bin, '--version'])
+    assert version_out.strip().endswith(python), '%r'
