@@ -280,7 +280,7 @@ class Repo(object):
                 click.echo('Failed to create virtualenv.  Aborting.')
                 return _cleanup()
 
-            args = [os.path.join(venv_path, BIN_DIR, 'pip'), 'install']
+            args = [os.path.join(venv_path, BIN_DIR, 'python'), '-m', 'pip', 'install']
             if editable:
                 args.append('--editable')
 
