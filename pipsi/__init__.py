@@ -289,6 +289,8 @@ class Repo(object):
     def install(self, package, python=None, editable=False, system_site_packages=False):
         # `python` could be int as major version, or str as absolute bin path,
         # if it's int, then we will try to find the executable `python2` or `python3` in PATH
+        if python is None:
+            python = sys.executable
         if isinstance(python, int):
             python_exe = 'python{}'.format(python)
             python = distutils.spawn.find_executable(python_exe)
