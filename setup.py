@@ -1,7 +1,21 @@
+import sys
 from setuptools import setup
+
 
 with open('README.rst', 'rb') as f:
     readme = f.read().decode('utf-8')
+
+
+requires = [
+    'Click'
+]
+
+
+if sys.version_info.major == 2:
+    requires.extend([
+        'virtualenv'
+    ])
+
 
 setup(
     name='pipsi',
@@ -17,10 +31,7 @@ setup(
         'pipsi': ['scripts/*.py'],
     },
     include_package_data=True,
-    install_requires=[
-        'Click',
-        'virtualenv',
-    ],
+    install_requires=requires,
     entry_points='''
     [console_scripts]
     pipsi=pipsi:cli
