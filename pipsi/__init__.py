@@ -8,6 +8,8 @@ import glob
 from collections import namedtuple
 from os.path import join, realpath, dirname, normpath, normcase
 from operator import methodcaller
+import distutils.spawn
+import re
 try:
     subprocess.run
 
@@ -157,6 +159,24 @@ class UninstallInfo(object):
 
 
 
+python_semver_regex = re.compile(r'^Python (\d)\.(\d+)\.(\d+)')
+
+
+def get_python_semver(python_bin):
+    cmd = [python_bin, '--version']
+    r = run(cmd)
+    if r.returncode != 0:
+        raise ValueError(
+            'Failed to run {}: {}, {}, {}'.format(cmd, r.returncode, r.stdout, r.stderr))
+    raw_version = r.stdout.strip()
+    if not raw_version:
+        raw_version = r.stderr.strip()
+    r = python_semver_regex.search(raw_version)
+    if not r:
+        raise ValueError(
+            'Could not match {} out of {}'.format(
+                python_semver_regex.pattern, repr(raw_version)))
+    return tuple(int(i) for i in r.groups())
 
 
 class Repo(object):
@@ -255,6 +275,16 @@ class Repo(object):
             return json.load(fh)
 
     def install(self, package, python=None, editable=False, system_site_packages=False):
+        # `python` could be int as major version, or str as absolute bin path,
+        # if it's int, then we will try to find the executable `python2` or `python3` in PATH
+        if isinstance(python, int):
+            python_exe = 'python{}'.format(python)
+            python = distutils.spawn.find_executable(python_exe)
+            if not python:
+                raise ValueError('Can not find {} in PATH'.format(python_exe))
+        python_semver = get_python_semver(python)
+        debugp('python: {}, python_bin_semver: {}'.format(python, python_semver))
+
         package, install_args = self.resolve_package(package, python)
 
         venv_path = self.get_package_path(package)
