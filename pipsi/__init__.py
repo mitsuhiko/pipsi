@@ -304,8 +304,12 @@ class Repo(object):
                 pass
             return False
 
-        # Install virtualenv, use the pipsi used python version by default
-        args = [sys.executable, '-m', 'virtualenv', '-p', python or sys.executable, venv_path]
+        # Create virtualenv, use `virtualenv `for python 2, `venv` for python 3
+        args = [python, '-m', 'virtualenv', venv_path]
+        if python_semver[0] == 2:
+            args = [python, '-m', 'virtualenv', venv_path]
+        else:
+            args = [python, '-m', 'venv', venv_path]
 
         if system_site_packages:
             args.append('--system-site-packages')
