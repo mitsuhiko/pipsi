@@ -51,6 +51,11 @@ CONTEXT_SETTINGS = dict(
 )
 
 
+def debugp(*args):
+    if os.environ.get('PIPSI_DEBUG'):
+        print(*args)
+
+
 def proc_output(s):
     s = s.strip()
     if not isinstance(s, str):
@@ -276,6 +281,7 @@ class Repo(object):
             args.append('--system-site-packages')
 
         try:
+            debugp('Popen: {}'.format(args))
             if Popen(args).wait() != 0:
                 click.echo('Failed to create virtualenv.  Aborting.')
                 return _cleanup()
@@ -284,6 +290,7 @@ class Repo(object):
             if editable:
                 args.append('--editable')
 
+            debugp('Popen: {}'.format(args + install_args))
             if Popen(args + install_args).wait() != 0:
                 click.echo('Failed to pip install.  Aborting.')
                 return _cleanup()
