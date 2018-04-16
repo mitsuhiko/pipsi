@@ -35,6 +35,7 @@ except ImportError:
 import click
 from pkg_resources import Requirement
 
+
 try:
     WindowsError
 except NameError:
@@ -155,8 +156,6 @@ class UninstallInfo(object):
                 os.remove(path)
             except OSError:
                 shutil.rmtree(path)
-
-
 
 
 python_semver_regex = re.compile(r'^Python (\d)\.(\d+)\.(\d+)')
@@ -420,7 +419,7 @@ class Repo(object):
 
 @click.group(context_settings=CONTEXT_SETTINGS)
 @click.option(
-    '--home', type=click.Path(),envvar='PIPSI_HOME',
+    '--home', type=click.Path(), envvar='PIPSI_HOME',
     default=os.path.expanduser('~/.local/venvs'),
     help='The folder that contains the virtualenvs.')
 @click.option(
@@ -428,7 +427,6 @@ class Repo(object):
     envvar='PIPSI_BIN_DIR',
     default=os.path.expanduser('~/.local/bin'),
     help='The path where the scripts are symlinked to.')
-
 @click.version_option(
     message='%(prog)s, version %(version)s, python ' + str(sys.executable))
 @click.pass_context
@@ -467,7 +465,6 @@ def install(repo, package, python, editable, system_site_packages):
         click.echo('Done.')
     else:
         sys.exit(1)
-
 
 
 @cli.command()
@@ -528,6 +525,7 @@ def list_cmd(repo, versions):
                     click.echo('    ' + script)
     else:
         click.echo('There are no scripts installed through pipsi')
+
 
 if __name__ == '__main__':
     cli()
