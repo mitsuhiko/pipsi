@@ -179,6 +179,18 @@ def get_python_semver(python_bin):
     return tuple(int(i) for i in r.groups())
 
 
+def get_real_python(python):
+    cmd = [python, '-c', 'import sys; print(sys.real_prefix)']
+    r = run(cmd)
+    if r.returncode == 0:
+        real_prefix = r.stdout
+        return os.path.join(real_prefix, 'bin', os.path.basename(python))
+    else:
+        debugp('get_real_python run {}: {}, {}, {}'.format(
+            cmd, r.returncode, r.stdout, r.stderr))
+        return python
+
+
 class Repo(object):
 
     def __init__(self, home, bin_dir):
@@ -304,15 +316,14 @@ class Repo(object):
                 pass
             return False
 
-        # Create virtualenv, use `virtualenv `for python 2, `venv` for python 3
+        # `venv` for python 3 has the problem that `venv` cannot
+        # add pip in virtualenv if it is executed under a virtualenv
         args = [python, '-m', 'virtualenv', venv_path]
         if python_semver[0] == 2:
             args = [python, '-m', 'virtualenv', venv_path]
         else:
-            args = [python, '-m', 'venv', venv_path]
-
-        if system_site_packages:
-            args.append('--system-site-packages')
+            real_python = get_real_python(python)
+            args = [real_python, '-m', 'venv', venv_path]
 
         try:
             debugp('Popen: {}'.format(args))
