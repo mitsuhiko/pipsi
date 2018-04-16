@@ -389,8 +389,12 @@ def cli(ctx, home, bin_dir):
 
 @cli.command()
 @click.argument('package')
-@click.option('--python', default=None,
-              help='The python interpreter to use.')
+@click.option(
+    '--python', type=str,
+    envvar='PIPSI_PYTHON',
+    default=sys.executable,
+    help=('The python interpreter to use, could be major version or path. '
+          'By default it would be `sys.executable`'))
 @click.option('--editable', '-e', is_flag=True,
               help='Enable editable installation.  This only works for '
                    'locally installed packages.')
@@ -405,6 +409,8 @@ def install(repo, package, python, editable, system_site_packages):
     of the given Python package into a new virtualenv and symlinks the
     discovered scripts into BIN_DIR (defaults to ~/.local/bin).
     """
+    if re.search(r'^\d$', python):
+        python = int(python)
     if repo.install(package, python, editable, system_site_packages):
         click.echo('Done.')
     else:
