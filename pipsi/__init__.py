@@ -179,16 +179,33 @@ def get_python_semver(python_bin):
     return tuple(int(i) for i in r.groups())
 
 
+code_for_get_real_python = (
+    'import sys; print("{},{}".format('
+    'getattr(sys, "real_prefix", ""),'
+    'sys.version_info.major))'
+)
+
+
 def get_real_python(python):
-    cmd = [python, '-c', 'import sys; print(sys.real_prefix)']
+    cmd = [python, '-c', code_for_get_real_python]
     r = run(cmd)
-    if r.returncode == 0:
-        real_prefix = r.stdout
-        return os.path.join(real_prefix, 'bin', os.path.basename(python))
-    else:
-        debugp('get_real_python run {}: {}, {}, {}'.format(
-            cmd, r.returncode, r.stdout, r.stderr))
+    if r.returncode != 0:
+        raise ValueError(
+            'Failed to run {}: {}, {}, {}'.format(cmd, r.returncode, r.stdout, r.stderr))
+    debugp('get_real_python run {}: {}, {}, {}'.format(
+        cmd, r.returncode, r.stdout, r.stderr))
+
+    real_prefix, major = r.stdout.split(',')
+    if not real_prefix:
         return python
+
+    real_python = None
+    for i in ['', major]:
+        real_python = os.path.join(real_prefix, 'bin', 'python' + i)
+        if os.path.exists(real_python):
+            return real_python
+    if not real_python:
+        raise ValueError('Can not find real python: {} not exist'.format(real_python))
 
 
 class Repo(object):
