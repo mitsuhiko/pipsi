@@ -181,7 +181,7 @@ def get_python_semver(python_bin):
 
 code_for_get_real_python = (
     'import sys; print("{},{}".format('
-    'getattr(sys, "real_prefix", ""),'
+    'getattr(sys, "real_prefix", ""), '
     'sys.version_info.major))'
 )
 
@@ -195,17 +195,15 @@ def get_real_python(python):
     debugp('get_real_python run {}: {}, {}, {}'.format(
         cmd, r.returncode, r.stdout, r.stderr))
 
-    real_prefix, major = r.stdout.split(',')
+    real_prefix, major = r.stdout.strip().split(',')
     if not real_prefix:
         return python
 
-    real_python = None
-    for i in ['', major]:
+    for i in [major, '']:
         real_python = os.path.join(real_prefix, 'bin', 'python' + i)
         if os.path.exists(real_python):
             return real_python
-    if not real_python:
-        raise ValueError('Can not find real python: {} not exist'.format(real_python))
+    raise ValueError('Can not find real python under {}'.format(real_prefix))
 
 
 class Repo(object):

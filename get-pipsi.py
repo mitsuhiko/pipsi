@@ -3,9 +3,8 @@ import argparse
 import os
 import shutil
 import sys
-from subprocess import call
+from subprocess import call, check_output
 import textwrap
-from pipsi import get_real_python
 
 
 try:
@@ -135,6 +134,29 @@ def parse_options(argv):
         ),
     )
     return parser.parse_args(argv)
+
+
+code_for_get_real_python = (
+    'import sys; print("{},{}".format('
+    'getattr(sys, "real_prefix", ""), '
+    'sys.version_info.major))'
+)
+
+
+def get_real_python(python):
+    cmd = [python, '-c', code_for_get_real_python]
+    out = check_output(cmd)
+    if not isinstance(out, str):
+        out = out.decode()
+    real_prefix, major = out.strip().split(',')
+    if not real_prefix:
+        return python
+
+    for i in [major, '']:
+        real_python = os.path.join(real_prefix, 'bin', 'python' + i)
+        if os.path.exists(real_python):
+            return real_python
+    raise ValueError('Can not find real python under {}'.format(real_prefix))
 
 
 def main(argv=sys.argv[1:]):
