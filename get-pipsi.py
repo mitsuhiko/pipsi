@@ -5,6 +5,7 @@ import shutil
 import sys
 from subprocess import call
 import textwrap
+from pipsi import get_real_python
 
 
 try:
@@ -18,17 +19,15 @@ else:
     PIP = '/Scripts/pip.exe'
     PIPSI = '/Scripts/pipsi.exe'
 
-try:
-    import virtualenv
-    venv_pkg = 'virtualenv'
-    del virtualenv
-except ImportError:
+if sys.version_info.major < 3:
     try:
-        import venv
-        venv_pkg = 'venv'
-        del venv
+        import virtualenv  # NOQA
+        venv_pkg = 'virtualenv'
+        del virtualenv
     except ImportError:
         venv_pkg = None
+else:
+    venv_pkg = 'venv'
 
 DEFAULT_PIPSI_HOME = os.path.expanduser('~/.local/venvs')
 DEFAULT_PIPSI_BIN_DIR = os.path.expanduser('~/.local/bin')
@@ -82,7 +81,12 @@ def install_files(venv, bin_dir, install):
         except (OSError, IOError):
             pass
 
-    if call([sys.executable, '-m', venv_pkg, venv]) != 0:
+    if sys.version_info.major < 3:
+        executable = sys.executable
+    else:
+        executable = get_real_python(sys.executable)
+        print('sys.executable={} sys.real_prefix={} executable={}'.format(sys.executable, getattr(sys, 'real_prefix', None), executable))
+    if call([executable, '-m', venv_pkg, venv]) != 0:
         _cleanup()
         fail('Could not create virtualenv for pipsi :(')
 
