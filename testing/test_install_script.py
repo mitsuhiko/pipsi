@@ -17,5 +17,6 @@ def test_create_env(tmpdir):
     subprocess.check_call([pipsi_bin])
 
     python = os.path.basename(sys.executable)
-    version_out = subprocess.check_output([pipsi_bin, '--version'])
-    assert version_out.strip().endswith(python), '%r'
+    version_out = subprocess.check_output([pipsi_bin, '--version']).decode()
+    assert version_out.strip().endswith(python), \
+        '%r does not end with %r' % (version_out, python)
