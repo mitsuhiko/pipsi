@@ -14,5 +14,5 @@ matrix:
     - env: TOXENV=py36
       python: "3.6"
 
-install: pip install tox
+install: pip install "tox<3"
 script: tox
