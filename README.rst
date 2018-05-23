@@ -32,6 +32,12 @@ Installing scripts from a package:
 
       $ pipsi install Pygments
 
+Installing scripts from a package using a particular version of python:
+
+.. code-block::
+
+      $ pipsi install --python /usr/bin/python3.5 hovercraft
+
 Uninstalling packages and their scripts:
 
 .. code-block::
