@@ -133,11 +133,53 @@ def parse_options(argv):
     return parser.parse_args(argv)
 
 
+def ensure_pipsi_on_path(bin_dir):
+    if not command_exists('pipsi'):
+        config_files = [
+            os.path.expanduser('~/.bashrc'),
+            os.path.expanduser('~/.profile'),
+        ]
+        config_file = None
+        for f in config_files:
+            if os.path.exists(f):
+                config_file = f
+                break
+
+        if config_file:
+            with open(config_file, 'a') as f:
+                f.write('\n# This line added by pipsi\n')
+                f.write('export PATH="%s:$PATH"\n\n' % bin_dir)
+            echo(
+                'Added %s to the PATH environment variable in %s' %
+                (bin_dir, config_file)
+            )
+            echo('Open a new terminal to use pipsi')
+        else:
+            echo(textwrap.dedent(
+                '''
+                %(sep)s
+
+                Warning:
+                  It looks like %(bin_dir)s is not on your PATH so pipsi will not
+                  work out of the box. To fix this problem make sure to add this to
+                  your .bashrc / .profile file:
+
+                  export PATH=%(bin_dir)s:$PATH
+
+                %(sep)s
+                ''' % dict(sep='=' * 60, bin_dir=bin_dir)
+            ))
+
+
 def main(argv=sys.argv[1:]):
     args = parse_options(argv)
 
     if command_exists('pipsi') and not args.ignore_existing:
+        ensure_pipsi_on_path(args.bin_dir)
         succeed('You already have pipsi installed')
+    elif os.path.exists(os.path.join(args.bin_dir, 'pipsi')):
+        ensure_pipsi_on_path(args.bin_dir)
+        succeed('pipsi is now installed')
     else:
         echo('Installing pipsi')
 
@@ -146,23 +188,7 @@ def main(argv=sys.argv[1:]):
 
     venv = os.path.join(args.home_dir, 'pipsi')
     install_files(venv, args.bin_dir, args.src)
-
-    if not command_exists('pipsi'):
-        echo(textwrap.dedent(
-            '''
-            %(sep)s
-
-            Warning:
-              It looks like %(bin_dir)s is not on your PATH so pipsi will not
-              work out of the box. To fix this problem make sure to add this to
-              your .bashrc / .profile file:
-
-              export PATH=%(bin_dir)s:$PATH
-
-            %(sep)s
-            ''' % dict(sep='=' * 60, bin_dir=args.bin_dir)
-        ))
-
+    ensure_pipsi_on_path(args.bin_dir)
     succeed('pipsi is now installed.')
 
 
