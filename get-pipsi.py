@@ -175,7 +175,6 @@ def main(argv=sys.argv[1:]):
     args = parse_options(argv)
 
     if command_exists('pipsi') and not args.ignore_existing:
-        ensure_pipsi_on_path(args.bin_dir)
         succeed('You already have pipsi installed')
     elif os.path.exists(os.path.join(args.bin_dir, 'pipsi')):
         ensure_pipsi_on_path(args.bin_dir)
