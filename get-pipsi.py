@@ -123,6 +123,11 @@ def parse_options(argv):
         ),
     )
     parser.add_argument(
+        '--no-modify-path',
+        action='store_true',
+        help='Don\'t configure the PATH environment variable'
+    )
+    parser.add_argument(
         '--ignore-existing',
         action='store_true',
         help=(
@@ -133,7 +138,7 @@ def parse_options(argv):
     return parser.parse_args(argv)
 
 
-def ensure_pipsi_on_path(bin_dir):
+def ensure_pipsi_on_path(bin_dir, modify_path):
     if not command_exists('pipsi'):
         shell = os.environ.get('SHELL', '')
         if 'bash' in shell:
@@ -145,7 +150,7 @@ def ensure_pipsi_on_path(bin_dir):
         else:
             config_file = None
 
-        if os.path.exists(config_file):
+        if modify_path and os.path.exists(config_file):
             with open(config_file, 'a') as f:
                 f.write('\n# added by pipsi\n')
                 f.write('export PATH="%s:$PATH"\n\n' % bin_dir)
@@ -159,10 +164,10 @@ def ensure_pipsi_on_path(bin_dir):
                 '''
                 %(sep)s
 
-                Warning:
-                  It looks like %(bin_dir)s is not on your PATH so pipsi will not
-                  work out of the box. To fix this problem make sure to add this to
-                  your .bashrc / .profile file:
+                Note:
+                  To finish installation, %(bin_dir)s must be added to your PATH.
+                  This can be done by adding the following line to your shell
+                  config file:
 
                   export PATH=%(bin_dir)s:$PATH
 
@@ -177,7 +182,7 @@ def main(argv=sys.argv[1:]):
     if command_exists('pipsi') and not args.ignore_existing:
         succeed('You already have pipsi installed')
     elif os.path.exists(os.path.join(args.bin_dir, 'pipsi')):
-        ensure_pipsi_on_path(args.bin_dir)
+        ensure_pipsi_on_path(args.bin_dir, not args.no_modify_path)
         succeed('pipsi is now installed')
     else:
         echo('Installing pipsi')
@@ -187,7 +192,7 @@ def main(argv=sys.argv[1:]):
 
     venv = os.path.join(args.home_dir, 'pipsi')
     install_files(venv, args.bin_dir, args.src)
-    ensure_pipsi_on_path(args.bin_dir)
+    ensure_pipsi_on_path(args.bin_dir, not args.no_modify_path)
     succeed('pipsi is now installed.')
 
 
