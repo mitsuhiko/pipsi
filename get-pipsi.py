@@ -135,19 +135,19 @@ def parse_options(argv):
 
 def ensure_pipsi_on_path(bin_dir):
     if not command_exists('pipsi'):
-        config_files = [
-            os.path.expanduser('~/.bashrc'),
-            os.path.expanduser('~/.profile'),
-        ]
-        config_file = None
-        for f in config_files:
-            if os.path.exists(f):
-                config_file = f
-                break
+        shell = os.environ.get('SHELL', '')
+        if 'bash' in shell:
+            config_file = os.path.expanduser('~/.bashrc')
+        elif 'zsh' in shell:
+            config_file = os.path.expanduser('~/.zshrc')
+        elif 'fish' in shell:
+            config_file = os.path.expanduser('~/.config/fish/config.fish')
+        else:
+            config_file = None
 
-        if config_file:
+        if os.path.exists(config_file):
             with open(config_file, 'a') as f:
-                f.write('\n# This line added by pipsi\n')
+                f.write('\n# added by pipsi\n')
                 f.write('export PATH="%s:$PATH"\n\n' % bin_dir)
             echo(
                 'Added %s to the PATH environment variable in %s' %
