@@ -142,18 +142,24 @@ def ensure_pipsi_on_path(bin_dir, modify_path):
     if not command_exists('pipsi'):
         shell = os.environ.get('SHELL', '')
         if 'bash' in shell:
-            config_file = os.path.expanduser('~/.bashrc')
+            config_file = '~/.bashrc'
         elif 'zsh' in shell:
-            config_file = os.path.expanduser('~/.zshrc')
+            config_file = '~/.zshrc'
         elif 'fish' in shell:
-            config_file = os.path.expanduser('~/.config/fish/config.fish')
+            config_file = '~/.config/fish/config.fish'
         else:
             config_file = None
+
+        if config_file:
+            config_file = os.path.expanduser(config_file)
 
         if modify_path and os.path.exists(config_file):
             with open(config_file, 'a') as f:
                 f.write('\n# added by pipsi\n')
-                f.write('export PATH="%s:$PATH"\n\n' % bin_dir)
+                if 'fish' in shell:
+                    f.write('set -x PATH %s $PATH\n\n' % bin_dir)
+                else:
+                    f.write('export PATH="%s:$PATH"\n\n' % bin_dir)
             echo(
                 'Added %s to the PATH environment variable in %s' %
                 (bin_dir, config_file)
