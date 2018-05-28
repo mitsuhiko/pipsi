@@ -53,7 +53,7 @@ CONTEXT_SETTINGS = dict(
 
 def proc_output(s):
     s = s.strip()
-    if not isinstance(s, str):
+    if  isinstance(s, bytes):
         s = s.decode('utf-8', 'replace')
     return s
 
