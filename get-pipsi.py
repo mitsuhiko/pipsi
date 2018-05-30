@@ -80,12 +80,18 @@ def install_files(venv, bin_dir, install):
         except (OSError, IOError):
             pass
 
+
     if sys.version_info.major < 3:
         executable = sys.executable
     else:
         executable = get_real_python(sys.executable)
         print('sys.executable={} sys.real_prefix={} executable={}'.format(sys.executable, getattr(sys, 'real_prefix', None), executable))
-    if call([executable, '-m', venv_pkg, venv]) != 0:
+    venv_cmd = [executable, '-m', venv_pkg]
+    if venv_pkg == 'virtualenv':
+        venv_cmd += ['-p', executable]
+    venv_cmd += [venv]
+
+    if call(venv_cmd) != 0:
         _cleanup()
         fail('Could not create virtualenv for pipsi :(')
 

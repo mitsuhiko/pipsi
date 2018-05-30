@@ -62,7 +62,7 @@ def debugp(*args):
 
 def proc_output(s):
     s = s.strip()
-    if not isinstance(s, str):
+    if  isinstance(s, bytes):
         s = s.decode('utf-8', 'replace')
     return s
 
@@ -348,7 +348,7 @@ class Repo(object):
                 click.echo('Failed to create virtualenv.  Aborting.')
                 return _cleanup()
 
-            args = [os.path.join(venv_path, BIN_DIR, 'pip'), 'install']
+            args = [os.path.join(venv_path, BIN_DIR, 'python'), '-m', 'pip', 'install']
             if editable:
                 args.append('--editable')
 
@@ -394,7 +394,7 @@ class Repo(object):
 
         old_scripts = set(self.get_package_scripts(venv_path))
 
-        args = [os.path.join(venv_path, BIN_DIR, 'pip'), 'install',
+        args = [os.path.join(venv_path, BIN_DIR, 'python'), '-m', 'pip', 'install',
                 '--upgrade']
         if editable:
             args.append('--editable')
@@ -414,9 +414,9 @@ class Repo(object):
             except (IOError, OSError):
                 pass
 
-        return True
-
         self.save_package_info(venv_path, package, linked_scripts)
+
+        return True
 
     def list_everything(self, versions=False):
         venvs = {}
@@ -437,13 +437,13 @@ class Repo(object):
 
 @click.group(context_settings=CONTEXT_SETTINGS)
 @click.option(
-    '--home', type=click.Path(), envvar='PIPSI_HOME',
-    default=os.path.expanduser('~/.local/venvs'),
+    '--home', type=click.Path(),envvar='PIPSI_HOME',
+    default=os.path.join(os.path.expanduser('~'), '.local', 'venvs'),
     help='The folder that contains the virtualenvs.')
 @click.option(
     '--bin-dir', type=click.Path(),
     envvar='PIPSI_BIN_DIR',
-    default=os.path.expanduser('~/.local/bin'),
+    default=os.path.join(os.path.expanduser('~'), '.local', 'bin'),
     help='The path where the scripts are symlinked to.')
 @click.version_option(
     message='%(prog)s, version %(version)s, python ' + str(sys.executable))

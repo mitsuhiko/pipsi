@@ -6,17 +6,6 @@ with open('README.rst', 'rb') as f:
     readme = f.read().decode('utf-8')
 
 
-requires = [
-    'Click'
-]
-
-
-if sys.version_info.major == 2:
-    requires.extend([
-        'virtualenv'
-    ])
-
-
 setup(
     name='pipsi',
     version='0.10.dev',
@@ -31,7 +20,11 @@ setup(
         'pipsi': ['scripts/*.py'],
     },
     include_package_data=True,
-    install_requires=requires,
+    install_requires=[
+        'Click',
+        'virtualenv',
+    ],
+    python_requires=">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*",
     entry_points='''
     [console_scripts]
     pipsi=pipsi:cli
