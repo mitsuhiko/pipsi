@@ -15,8 +15,3 @@ def test_create_env(tmpdir):
     pipsi_bin = str(tmpdir.join('test_bin/pipsi' + ('.exe' if IS_WIN else '')))
 
     subprocess.check_call([pipsi_bin])
-
-    python = os.path.basename(sys.executable)
-    version_out = subprocess.check_output([pipsi_bin, '--version']).decode()
-    assert version_out.strip().endswith(python), \
-        '%r does not end with %r' % (version_out, python)
