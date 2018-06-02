@@ -186,6 +186,9 @@ code_for_get_real_python = (
 )
 
 
+# `venv` for python 3 has the problem that `venv` cannot
+# add pip in virtualenv if it is executed under a virtualenv,
+# use this function to avoid this problem
 def get_real_python(python):
     cmd = [python, '-c', code_for_get_real_python]
     r = run(cmd)
@@ -304,13 +307,13 @@ class Repo(object):
     def install(self, package, python=None, editable=False, system_site_packages=False):
         # `python` could be int as major version, or str as absolute bin path,
         # if it's int, then we will try to find the executable `python2` or `python3` in PATH
-        if python is None:
-            python = sys.executable
         if isinstance(python, int):
             python_exe = 'python{}'.format(python)
             python = distutils.spawn.find_executable(python_exe)
             if not python:
                 raise ValueError('Can not find {} in PATH'.format(python_exe))
+        if not python:
+            python = sys.executable
         python_semver = get_python_semver(python)
         debugp('python: {}, python_bin_semver: {}'.format(python, python_semver))
 
@@ -333,14 +336,16 @@ class Repo(object):
                 pass
             return False
 
-        # `venv` for python 3 has the problem that `venv` cannot
-        # add pip in virtualenv if it is executed under a virtualenv
-        args = [python, '-m', 'virtualenv', venv_path]
-        if python_semver[0] == 2:
-            args = [python, '-m', 'virtualenv', venv_path]
-        else:
+        # Install virtualenv, use the pipsi used python version by default
+        args = [sys.executable, '-m', 'virtualenv', '-p', python, venv_path]
+
+        if python_semver[0] == 3:
+            # if target python is 3, use its builtin `venv` module to create virtualenv
             real_python = get_real_python(python)
             args = [real_python, '-m', 'venv', venv_path]
+
+        if system_site_packages:
+            args.append('--system-site-packages')
 
         try:
             debugp('Popen: {}'.format(args))
