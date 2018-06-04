@@ -155,11 +155,11 @@ def ensure_pipsi_on_path(bin_dir, modify_path):
 
         if modify_path and os.path.exists(config_file):
             with open(config_file, 'a') as f:
-                f.write('\n# added by pipsi\n')
+                f.write('\n# added by pipsi (https://github.com/mitsuhiko/pipsi)\n')
                 if 'fish' in shell:
                     f.write('set -x PATH %s $PATH\n\n' % bin_dir)
                 else:
-                    f.write('export PATH="%s:$PATH"\n\n' % bin_dir)
+                    f.write('export PATH="%s:$PATH"\n' % bin_dir)
             echo(
                 'Added %s to the PATH environment variable in %s' %
                 (bin_dir, config_file)
@@ -190,9 +190,8 @@ def main(argv=sys.argv[1:]):
     elif os.path.exists(os.path.join(args.bin_dir, 'pipsi')):
         ensure_pipsi_on_path(args.bin_dir, not args.no_modify_path)
         succeed('pipsi is now installed')
-    else:
-        echo('Installing pipsi')
 
+    echo('Installing pipsi')
     if venv_pkg is None:
         fail('You need to have virtualenv installed to bootstrap pipsi.')
 
