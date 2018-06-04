@@ -132,6 +132,11 @@ def parse_options(argv):
         ),
     )
     parser.add_argument(
+        '--no-modify-path',
+        action='store_true',
+        help='Don\'t configure the PATH environment variable'
+    )
+    parser.add_argument(
         '--ignore-existing',
         action='store_true',
         help=(
@@ -165,36 +170,66 @@ def get_real_python(python):
     raise ValueError('Can not find real python under {}'.format(real_prefix))
 
 
+def ensure_pipsi_on_path(bin_dir, modify_path):
+    if not command_exists('pipsi'):
+        shell = os.environ.get('SHELL', '')
+        if 'bash' in shell:
+            config_file = '~/.bashrc'
+        elif 'zsh' in shell:
+            config_file = '~/.zshrc'
+        elif 'fish' in shell:
+            config_file = '~/.config/fish/config.fish'
+        else:
+            config_file = None
+
+        if config_file:
+            config_file = os.path.expanduser(config_file)
+
+        if modify_path and os.path.exists(config_file):
+            with open(config_file, 'a') as f:
+                f.write('\n# added by pipsi (https://github.com/mitsuhiko/pipsi)\n')
+                if 'fish' in shell:
+                    f.write('set -x PATH %s $PATH\n\n' % bin_dir)
+                else:
+                    f.write('export PATH="%s:$PATH"\n' % bin_dir)
+            echo(
+                'Added %s to the PATH environment variable in %s' %
+                (bin_dir, config_file)
+            )
+            echo('Open a new terminal to use pipsi')
+        else:
+            echo(textwrap.dedent(
+                '''
+                %(sep)s
+
+                Note:
+                  To finish installation, %(bin_dir)s must be added to your PATH.
+                  This can be done by adding the following line to your shell
+                  config file:
+
+                  export PATH=%(bin_dir)s:$PATH
+
+                %(sep)s
+                ''' % dict(sep='=' * 60, bin_dir=bin_dir)
+            ))
+
+
 def main(argv=sys.argv[1:]):
     args = parse_options(argv)
 
     if command_exists('pipsi') and not args.ignore_existing:
         succeed('You already have pipsi installed')
-    else:
-        echo('Installing pipsi')
+    elif os.path.exists(os.path.join(args.bin_dir, 'pipsi')):
+        ensure_pipsi_on_path(args.bin_dir, not args.no_modify_path)
+        succeed('pipsi is now installed')
 
+    echo('Installing pipsi')
     if venv_pkg is None:
         fail('You need to have virtualenv installed to bootstrap pipsi.')
 
     venv = os.path.join(args.home_dir, 'pipsi')
     install_files(venv, args.bin_dir, args.src)
-
-    if not command_exists('pipsi'):
-        echo(textwrap.dedent(
-            '''
-            %(sep)s
-
-            Warning:
-              It looks like %(bin_dir)s is not on your PATH so pipsi will not
-              work out of the box. To fix this problem make sure to add this to
-              your .bashrc / .profile file:
-
-              export PATH=%(bin_dir)s:$PATH
-
-            %(sep)s
-            ''' % dict(sep='=' * 60, bin_dir=args.bin_dir)
-        ))
-
+    ensure_pipsi_on_path(args.bin_dir, not args.no_modify_path)
     succeed('pipsi is now installed.')
 
 
