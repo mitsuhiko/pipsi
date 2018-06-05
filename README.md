@@ -1,60 +1,88 @@
 # pipsi
 
-pipsi = pip script installer
+pipsi = **pip** **s**cript **i**nstaller
 
-What does it do? pipsi is a wrapper around virtualenv and pip which installs scripts provided by python packages into separate virtualenvs to shield them from your system and each other.
+## What does it do?
+**pipsi** makes installing python packages with global entry points painless. These are Python packages that expose an entry point through the command line such as [black](https://pypi.org/project/black/), [pre-commit](https://pypi.org/project/pre_commit/), [Pygments](https://pypi.org/project/Pygments/), [poetry](https://pypi.org/project/poetry/), and many others.
 
-In other words: you can use pipsi to install things like pygmentize without making your system painful.
+If you are installing Python packages globally for cli access, you almost certainly want to use pipsi instead of running `sudo pip ...`. so that you get
+* Isolated dependencies to guarantee no version conflicts
+* The ability to install packages globally without being sudo
+* The ability to uninstall a package and its dependencies without affecting other globally installed Python programs
 
-How do I get it?
+It was made by the creator of the popular [Flask](https://pypi.org/project/Flask/) web framework @mitsuhiko, and is now maintained by @RonnyPfannschmidt and the community.
+
+pipsi is not meant for installing libraries that will be imported by other Python modules.
+
+## How do I get it?
 
 ```bash
 curl https://raw.githubusercontent.com/mitsuhiko/pipsi/master/get-pipsi.py | python
 ```
 
-How does it work?
+## How does it work?
+
+pipsi is a wrapper around virtualenv and pip which installs scripts provided by python packages into isolated virtualenvs so they do not pollute your system's Python packages.
 
 pipsi installs each package into `~/.local/venvs/PKGNAME` and then symlinks all new scripts into `~/.local/bin` (these can be changed by `PIPSI_HOME` and `PIPSI_BIN_DIR` environment variables respectively).
 
-Compared to `pip install --user` each `PKGNAME` is installed into its own virtualenv, so you don't have to worry about different packages having conflicting dependencies.
+Here is a tree view into the directory structure created by pipsi.
 
-Installing scripts from a package:
+```
+/Users/user/.local
+├── bin
+│   ├── pipsi -> /Users/user/.local/venvs/pipsi/bin/pipsi
+│   ├── poetry -> /Users/user/.local/venvs/poetry/bin/poetry
+│   └── pygmentize -> /Users/user/.local/venvs/pygments/bin/pygmentize
+├── share
+│   └── virtualenvs
+└── venvs
+    ├── pipsi
+    ├── poetry
+    └── pygments
+```
+
+Compared to `pip install --user` each `PKGNAME` is installed into its own virtualenv, so you don't have to worry about different packages having conflicting dependencies. As long as `~/.local/bin` is on your PATH, you can run any of these scripts directly.
+
+### Installing scripts from a package:
 
 ```bash
 $ pipsi install Pygments
 ```
 
-Installing scripts from a package using a particular version of python:
+### Installing scripts from a package using a particular version of python:
 
 ```bash
 $ pipsi install --python /usr/bin/python3.5 hovercraft
 ```
 
-Uninstalling packages and their scripts:
+### Uninstalling packages and their scripts:
 
 ```bash
 $ pipsi uninstall Pygments
 ```
 
-Upgrading a package:
+### Upgrading a package:
 
 ```bash
 $ pipsi upgrade Pygments
 ```
 
-Showing what's installed:
+### Showing what's installed:
 
 ```bash
 $ pipsi list
 ```
 
-How do I get rid of pipsi?
+### How do I get rid of pipsi?
 
 ```bash
 $ pipsi uninstall pipsi
 ```
 
-How do I upgrade pipsi? With 0.5 and later just do this:
+### How do I upgrade pipsi?
+
+With 0.5 and later just do this:
 
 ```bash
 $ pipsi upgrade pipsi
