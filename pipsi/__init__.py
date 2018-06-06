@@ -1,3 +1,4 @@
+from __future__ import print_function
 import json
 import os
 import pkgutil
@@ -8,6 +9,8 @@ import glob
 from collections import namedtuple
 from os.path import join, realpath, dirname, normpath, normcase
 from operator import methodcaller
+import distutils.spawn
+import re
 try:
     subprocess.run
 
@@ -33,6 +36,7 @@ except ImportError:
 import click
 from pkg_resources import Requirement
 
+
 try:
     WindowsError
 except NameError:
@@ -49,6 +53,11 @@ GET_VERSION_SCRIPT = pkgutil.get_data('pipsi', 'scripts/get_version.py').decode(
 CONTEXT_SETTINGS = dict(
     help_option_names=['-h', '--help'],
 )
+
+
+def debugp(*args):
+    if os.environ.get('PIPSI_DEBUG'):
+        print(*args)
 
 
 def proc_output(s):
@@ -150,8 +159,54 @@ class UninstallInfo(object):
                 shutil.rmtree(path)
 
 
+python_semver_regex = re.compile(r'^Python (\d)\.(\d+)\.(\d+)')
 
 
+def get_python_semver(python_bin):
+    cmd = [python_bin, '--version']
+    r = run(cmd)
+    if r.returncode != 0:
+        raise ValueError(
+            'Failed to run {}: {}, {}, {}'.format(cmd, r.returncode, r.stdout, r.stderr))
+    raw_version = r.stdout.strip()
+    if not raw_version:
+        raw_version = r.stderr.strip()
+    r = python_semver_regex.search(raw_version)
+    if not r:
+        raise ValueError(
+            'Could not match {} out of {}'.format(
+                python_semver_regex.pattern, repr(raw_version)))
+    return tuple(int(i) for i in r.groups())
+
+
+code_for_get_real_python = (
+    'import sys; print("{},{}".format('
+    'getattr(sys, "real_prefix", ""), '
+    'sys.version_info.major))'
+)
+
+
+# `venv` for python 3 has the problem that `venv` cannot
+# add pip in virtualenv if it is executed under a virtualenv,
+# use this function to avoid this problem
+def get_real_python(python):
+    cmd = [python, '-c', code_for_get_real_python]
+    r = run(cmd)
+    if r.returncode != 0:
+        raise ValueError(
+            'Failed to run {}: {}, {}, {}'.format(cmd, r.returncode, r.stdout, r.stderr))
+    debugp('get_real_python run {}: {}, {}, {}'.format(
+        cmd, r.returncode, r.stdout, r.stderr))
+
+    real_prefix, major = r.stdout.strip().split(',')
+    if not real_prefix:
+        return python
+
+    for i in [major, '']:
+        real_python = os.path.join(real_prefix, 'bin', 'python' + i)
+        if os.path.exists(real_python):
+            return real_python
+    raise ValueError('Can not find real python under {}'.format(real_prefix))
 
 
 class Repo(object):
@@ -250,6 +305,18 @@ class Repo(object):
             return json.load(fh)
 
     def install(self, package, python=None, editable=False, system_site_packages=False):
+        # `python` could be int as major version, or str as absolute bin path,
+        # if it's int, then we will try to find the executable `python2` or `python3` in PATH
+        if isinstance(python, int):
+            python_exe = 'python{}'.format(python)
+            python = distutils.spawn.find_executable(python_exe)
+            if not python:
+                raise ValueError('Can not find {} in PATH'.format(python_exe))
+        if not python:
+            python = sys.executable
+        python_semver = get_python_semver(python)
+        debugp('python: {}, python_bin_semver: {}'.format(python, python_semver))
+
         package, install_args = self.resolve_package(package, python)
 
         venv_path = self.get_package_path(package)
@@ -270,12 +337,18 @@ class Repo(object):
             return False
 
         # Install virtualenv, use the pipsi used python version by default
-        args = [sys.executable, '-m', 'virtualenv', '-p', python or sys.executable, venv_path]
+        args = [sys.executable, '-m', 'virtualenv', '-p', python, venv_path]
+
+        if python_semver[0] == 3:
+            # if target python is 3, use its builtin `venv` module to create virtualenv
+            real_python = get_real_python(python)
+            args = [real_python, '-m', 'venv', venv_path]
 
         if system_site_packages:
             args.append('--system-site-packages')
 
         try:
+            debugp('Popen: {}'.format(args))
             if Popen(args).wait() != 0:
                 click.echo('Failed to create virtualenv.  Aborting.')
                 return _cleanup()
@@ -284,6 +357,7 @@ class Repo(object):
             if editable:
                 args.append('--editable')
 
+            debugp('Popen: {}'.format(args + install_args))
             if Popen(args + install_args).wait() != 0:
                 click.echo('Failed to pip install.  Aborting.')
                 return _cleanup()
@@ -376,7 +450,6 @@ class Repo(object):
     envvar='PIPSI_BIN_DIR',
     default=os.path.join(os.path.expanduser('~'), '.local', 'bin'),
     help='The path where the scripts are symlinked to.')
-
 @click.version_option(
     message='%(prog)s, version %(version)s, python ' + str(sys.executable))
 @click.pass_context
@@ -389,8 +462,12 @@ def cli(ctx, home, bin_dir):
 
 @cli.command()
 @click.argument('package')
-@click.option('--python', default=None,
-              help='The python interpreter to use.')
+@click.option(
+    '--python', type=str,
+    envvar='PIPSI_PYTHON',
+    default=sys.executable,
+    help=('The python interpreter to use, could be major version or path. '
+          'By default it would be `sys.executable`'))
 @click.option('--editable', '-e', is_flag=True,
               help='Enable editable installation.  This only works for '
                    'locally installed packages.')
@@ -405,11 +482,12 @@ def install(repo, package, python, editable, system_site_packages):
     of the given Python package into a new virtualenv and symlinks the
     discovered scripts into BIN_DIR (defaults to ~/.local/bin).
     """
+    if re.search(r'^\d$', python):
+        python = int(python)
     if repo.install(package, python, editable, system_site_packages):
         click.echo('Done.')
     else:
         sys.exit(1)
-
 
 
 @cli.command()
@@ -470,6 +548,7 @@ def list_cmd(repo, versions):
                     click.echo('    ' + script)
     else:
         click.echo('There are no scripts installed through pipsi')
+
 
 if __name__ == '__main__':
     cli()

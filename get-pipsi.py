@@ -3,7 +3,7 @@ import argparse
 import os
 import shutil
 import sys
-from subprocess import call
+from subprocess import call, check_output
 import textwrap
 
 
@@ -18,17 +18,15 @@ else:
     PIP = '/Scripts/pip.exe'
     PIPSI = '/Scripts/pipsi.exe'
 
-try:
-    import virtualenv
-    venv_pkg = 'virtualenv'
-    del virtualenv
-except ImportError:
+if sys.version_info.major < 3:
     try:
-        import venv
-        venv_pkg = 'venv'
-        del venv
+        import virtualenv  # NOQA
+        venv_pkg = 'virtualenv'
+        del virtualenv
     except ImportError:
         venv_pkg = None
+else:
+    venv_pkg = 'venv'
 
 DEFAULT_PIPSI_HOME = os.path.expanduser('~/.local/venvs')
 DEFAULT_PIPSI_BIN_DIR = os.path.expanduser('~/.local/bin')
@@ -82,9 +80,15 @@ def install_files(venv, bin_dir, install):
         except (OSError, IOError):
             pass
 
-    venv_cmd = [sys.executable, '-m', venv_pkg]
+
+    if sys.version_info.major < 3:
+        executable = sys.executable
+    else:
+        executable = get_real_python(sys.executable)
+        print('sys.executable={} sys.real_prefix={} executable={}'.format(sys.executable, getattr(sys, 'real_prefix', None), executable))
+    venv_cmd = [executable, '-m', venv_pkg]
     if venv_pkg == 'virtualenv':
-        venv_cmd += ['-p', sys.executable]
+        venv_cmd += ['-p', executable]
     venv_cmd += [venv]
 
     if call(venv_cmd) != 0:
@@ -141,6 +145,29 @@ def parse_options(argv):
         ),
     )
     return parser.parse_args(argv)
+
+
+code_for_get_real_python = (
+    'import sys; print("{},{}".format('
+    'getattr(sys, "real_prefix", ""), '
+    'sys.version_info.major))'
+)
+
+
+def get_real_python(python):
+    cmd = [python, '-c', code_for_get_real_python]
+    out = check_output(cmd)
+    if not isinstance(out, str):
+        out = out.decode()
+    real_prefix, major = out.strip().split(',')
+    if not real_prefix:
+        return python
+
+    for i in [major, '']:
+        real_python = os.path.join(real_prefix, 'bin', 'python' + i)
+        if os.path.exists(real_python):
+            return real_python
+    raise ValueError('Can not find real python under {}'.format(real_prefix))
 
 
 def ensure_pipsi_on_path(bin_dir, modify_path):
