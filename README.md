@@ -3,14 +3,12 @@
 pipsi = **pip** **s**cript **i**nstaller
 
 ## What does it do?
-**pipsi** makes installing python packages with global entry points painless. These are Python packages that expose an entry point through the command line such as [black](https://pypi.org/project/black/), [pre-commit](https://pypi.org/project/pre_commit/), [Pygments](https://pypi.org/project/Pygments/), [poetry](https://pypi.org/project/poetry/), and many others.
+**pipsi** makes installing python packages with global entry points painless. These are Python packages that expose an entry point through the command line such as [Pygments](https://pypi.org/project/Pygments/).
 
 If you are installing Python packages globally for cli access, you almost certainly want to use pipsi instead of running `sudo pip ...`. so that you get
 * Isolated dependencies to guarantee no version conflicts
-* The ability to install packages globally without being sudo
+* The ability to install packages globally without using sudo
 * The ability to uninstall a package and its dependencies without affecting other globally installed Python programs
-
-It was made by the creator of the popular [Flask](https://pypi.org/project/Flask/) web framework @mitsuhiko, and is now maintained by @RonnyPfannschmidt and the community.
 
 pipsi is not meant for installing libraries that will be imported by other Python modules.
 
@@ -89,3 +87,6 @@ $ pipsi upgrade pipsi
 ```
 
 On older versions just uninstall and reinstall.
+
+## Author
+pipsi was made by the creator of the popular [Flask](https://pypi.org/project/Flask/) web framework @mitsuhiko. untitake and RonnyPfannschmidt are now the admins of pipsi, and contribute on a volunteer basis in their spare time.
