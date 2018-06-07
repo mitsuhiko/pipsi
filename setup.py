@@ -1,6 +1,6 @@
 from setuptools import setup
 
-with open('README.rst', 'rb') as f:
+with open('README.md', 'rb') as f:
     readme = f.read().decode('utf-8')
 
 
