@@ -1,4 +1,4 @@
-include README.rst LICENSE tox.ini
+include README.md LICENSE tox.ini
 include get-pipsi.py
 recursive-include testing *.py
 recursive-include pipsi *.py

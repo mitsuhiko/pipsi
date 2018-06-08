@@ -1,8 +1,6 @@
-import sys
 from setuptools import setup
 
-
-with open('README.rst', 'rb') as f:
+with open('README.md', 'rb') as f:
     readme = f.read().decode('utf-8')
 
 
@@ -11,6 +9,7 @@ setup(
     version='0.10.dev',
     description='Wraps pip and virtualenv to install scripts',
     long_description=readme,
+    long_description_content_type="text/markdown",
     license='BSD',
     author='Armin Ronacher',
     author_email='armin.ronacher@active-4.com',
