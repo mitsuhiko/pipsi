@@ -18,25 +18,29 @@ pipsi is not meant for installing libraries that will be imported by other Pytho
 curl https://raw.githubusercontent.com/mitsuhiko/pipsi/master/get-pipsi.py | python
 ```
 
+to see installation options, including not automatically modifying the PATH environment variable
+
+```bash
+curl https://raw.githubusercontent.com/mitsuhiko/pipsi/master/get-pipsi.py | python - --help
+```
+
 ## How does it work?
 
 pipsi is a wrapper around virtualenv and pip which installs scripts provided by python packages into isolated virtualenvs so they do not pollute your system's Python packages.
 
 pipsi installs each package into `~/.local/venvs/PKGNAME` and then symlinks all new scripts into `~/.local/bin` (these can be changed by `PIPSI_HOME` and `PIPSI_BIN_DIR` environment variables respectively).
 
-Here is a tree view into the directory structure created by pipsi.
+Here is a tree view into the directory structure created by pipsi after installing pipsi and running `pipsi install Pygments`.
 
 ```
 /Users/user/.local
 ├── bin
 │   ├── pipsi -> /Users/user/.local/venvs/pipsi/bin/pipsi
-│   ├── poetry -> /Users/user/.local/venvs/poetry/bin/poetry
 │   └── pygmentize -> /Users/user/.local/venvs/pygments/bin/pygmentize
 ├── share
 │   └── virtualenvs
 └── venvs
     ├── pipsi
-    ├── poetry
     └── pygments
 ```
 
