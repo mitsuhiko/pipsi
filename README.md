@@ -1,6 +1,6 @@
 # pipsi
 
-**⚠️ pipsi is no longer maintained. See [pipx](https://github.com/cs01/pipx) for an actively maintained alternative. https://github.com/cs01/pipx**
+**⚠️ pipsi is no longer maintained. See [pipx](https://github.com/pipxproject/pipx) for an actively maintained alternative. https://github.com/pipxproject/pipx**
 
 ---
 
