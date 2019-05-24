@@ -1,5 +1,9 @@
 # pipsi
 
+**⚠️ pipsi is no longer maintained. See [pipx](https://github.com/pipxproject/pipx) for an actively maintained alternative. https://github.com/pipxproject/pipx**
+
+---
+
 pipsi = **pip** **s**cript **i**nstaller
 
 ## What does it do?
@@ -91,6 +95,3 @@ $ pipsi upgrade pipsi
 ```
 
 On older versions just uninstall and reinstall.
-
-## Author
-pipsi was made by the creator of the popular [Flask](https://pypi.org/project/Flask/) web framework @mitsuhiko. untitake and RonnyPfannschmidt are now the admins of pipsi, and contribute on a volunteer basis in their spare time.
